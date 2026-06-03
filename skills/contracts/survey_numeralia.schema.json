@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://cbmc.org/schemas/skills/survey_numeralia.schema.json",
+  "title": "Survey Numeralia Summary Input",
+  "description": "Generate survey statistics",
+  "type": "object",
+  "properties": {
+    "group_by": {
+      "type": "string",
+      "description": "Grouping variable",
+      "enum": ["Year", "Region", "MPA"],
+      "default": "Year"
+    }
+  },
+  "additionalProperties": false
+}

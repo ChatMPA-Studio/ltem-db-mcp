@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://cbmc.org/schemas/skills/mpa_effectiveness.schema.json",
+  "title": "MPA Effectiveness Analysis Input",
+  "description": "Compare biomass across protection levels",
+  "type": "object",
+  "properties": {
+    "region": {
+      "type": ["string", "null"],
+      "description": "Region to analyze (null = all regions)",
+      "enum": [
+        null,
+        "Alto Golfo",
+        "Bahia Banderas",
+        "Cabo Pulmo",
+        "Corredor",
+        "Huatulco",
+        "Islas Marias",
+        "Ixtapa",
+        "La Paz",
+        "La Ventana",
+        "Loreto",
+        "Los Cabos",
+        "Revillagigedo",
+        "San Basilio",
+        "Santa Rosalia"
+      ]
+    },
+    "year_range": {
+      "type": "object",
+      "description": "Optional year range filter",
+      "properties": {
+        "start": {
+          "type": "integer",
+          "minimum": 1999,
+          "maximum": 2024
+        },
+        "end": {
+          "type": "integer",
+          "minimum": 1999,
+          "maximum": 2024
+        }
+      }
+    },
+    "metric": {
+      "type": "string",
+      "description": "Metric to compare",
+      "enum": ["biomass", "abundance", "richness"],
+      "default": "biomass"
+    }
+  },
+  "additionalProperties": false
+}

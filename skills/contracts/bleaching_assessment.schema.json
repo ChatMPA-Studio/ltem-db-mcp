@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://cbmc.org/schemas/skills/bleaching_assessment.schema.json",
+  "title": "Bleaching Impact Assessment Input",
+  "description": "BACI analysis for bleaching impacts",
+  "type": "object",
+  "properties": {
+    "before_years": {
+      "type": ["array", "null"],
+      "description": "Pre-bleaching years",
+      "items": {
+        "type": "integer",
+        "minimum": 1999,
+        "maximum": 2024
+      }
+    },
+    "after_years": {
+      "type": ["array", "null"],
+      "description": "Post-bleaching years",
+      "items": {
+        "type": "integer",
+        "minimum": 1999,
+        "maximum": 2024
+      }
+    }
+  },
+  "additionalProperties": false
+}

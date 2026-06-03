@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://cbmc.org/schemas/skills/biomass_productivity.schema.json",
+  "title": "Biomass-Productivity Relationship Input",
+  "description": "Analyze biomass vs chlorophyll-a relationship",
+  "type": "object",
+  "properties": {
+    "region": {
+      "type": ["string", "null"],
+      "description": "Region to analyze"
+    }
+  },
+  "additionalProperties": false
+}

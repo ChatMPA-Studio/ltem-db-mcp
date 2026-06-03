@@ -1,0 +1,20 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://cbmc.org/schemas/skills/nrsi_index.schema.json",
+  "title": "NRSI Index Calculation Input",
+  "description": "Calculate Natural Reef State Index",
+  "type": "object",
+  "properties": {
+    "region": {
+      "type": ["string", "null"],
+      "description": "Region to analyze"
+    },
+    "year": {
+      "type": ["integer", "null"],
+      "description": "Year to analyze",
+      "minimum": 1999,
+      "maximum": 2024
+    }
+  },
+  "additionalProperties": false
+}

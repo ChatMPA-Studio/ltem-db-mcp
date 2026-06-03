@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://cbmc.org/schemas/skills/temporal_trends.schema.json",
+  "title": "Temporal Trends Analysis Input",
+  "description": "Analyze trends over time",
+  "type": "object",
+  "properties": {
+    "region": {
+      "type": ["string", "null"],
+      "description": "Region to analyze (null = all regions)"
+    },
+    "metric": {
+      "type": "string",
+      "description": "Metric to analyze",
+      "enum": ["biomass", "abundance", "richness"],
+      "default": "biomass"
+    },
+    "window_size": {
+      "type": "integer",
+      "description": "Moving average window size (years)",
+      "minimum": 3,
+      "maximum": 10,
+      "default": 5
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ltem-db-mcp"
+version = "1.1.0"
+description = "MCP server for LTEM ecological monitoring database"
+requires-python = ">=3.10"
+dependencies = [
+    "fastmcp>=2.0.0",
+    "packaging>=24.0",
+    "pymysql>=1.1.0",
+    "python-dotenv>=1.0.0",
+    "pandas>=2.0.0",
+    "numpy>=1.24.0",
+    "scipy>=1.11.0",
+]
+
+[project.optional-dependencies]
+report = [
+    "matplotlib>=3.7.0",
+    "seaborn>=0.12.0",
+    "Pillow>=10.0.0",
+    "WeasyPrint>=60.0",
+    "python-docx>=0.8.11",
+]
+dev = [
+    "pytest>=7.0",
+    "httpx>=0.25.0",
+    "matplotlib>=3.7.0",
+    "seaborn>=0.12.0",
+    "Pillow>=10.0.0",
+    "WeasyPrint>=60.0",
+    "python-docx>=0.8.11",
+]
+
+[tool.setuptools.packages.find]
+include = ["mcp_server*", "tools*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v"
+markers = [
+    "slow: marks tests that require network access or long computation",
+]

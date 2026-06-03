@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://cbmc.org/schemas/skills/data_quality.schema.json",
+  "title": "Data Quality Assessment Input",
+  "description": "Assess survey effort and data completeness",
+  "type": "object",
+  "properties": {
+    "group_by": {
+      "type": "string",
+      "description": "Grouping variable for summary",
+      "enum": ["Year", "Region", "MPA"],
+      "default": "Year"
+    }
+  },
+  "additionalProperties": false
+}

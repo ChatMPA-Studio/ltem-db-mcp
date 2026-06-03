@@ -1,0 +1,61 @@
+# =============================================================================
+# Stage 1: Builder — install dependencies into a virtual environment
+# =============================================================================
+FROM python:3.12-slim AS builder
+
+ENV PYTHONDONTWRITEBYTECODE=1
+
+WORKDIR /build
+
+# Install build tools
+RUN pip install --no-cache-dir setuptools wheel
+
+# Copy only dependency metadata first (layer caching)
+COPY pyproject.toml ./
+
+# Create stub packages so setuptools can resolve the install
+# --force-reinstall ensures transitive deps like packaging get installed
+# into the --prefix path even if already present in the builder environment
+RUN mkdir -p mcp_server tools skills && \
+    touch mcp_server/__init__.py tools/__init__.py && \
+    pip install --no-cache-dir --force-reinstall --prefix=/install . && \
+    rm -rf mcp_server tools skills
+
+# =============================================================================
+# Stage 2: Runtime — lean production image
+# =============================================================================
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# Copy pre-built dependencies from builder
+COPY --from=builder /install /usr/local
+
+# Copy application source and install package (deps already cached)
+COPY pyproject.toml ./
+COPY mcp_server/ mcp_server/
+COPY tools/ tools/
+COPY skills/ skills/
+COPY resources/ resources/
+RUN pip install --no-cache-dir --no-deps .
+
+# Health check script
+COPY healthcheck.py ./
+
+# Run as non-root for security
+RUN groupadd --gid 1000 mcp && \
+    useradd --uid 1000 --gid mcp --shell /bin/false mcp && \
+    chown -R mcp:mcp /app
+USER mcp
+
+# Default port — override with PORT env var
+ENV PORT=8000
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD ["python", "healthcheck.py"]
+
+CMD ["python", "-m", "mcp_server"]

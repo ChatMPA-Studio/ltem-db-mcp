@@ -1,0 +1,46 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Git
+.git/
+.gitignore
+
+# Virtual environments
+.venv/
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Development / test files
+tests/
+docs/
+scripts/
+data/
+db/
+.claude/
+
+# IDE / cache
+.vscode/
+.idea/
+.pytest_cache/
+
+# Docker meta (avoid recursive context)
+docker-compose*.yml
+Dockerfile
+
+# Docs (not needed in image)
+*.md
+!resources/*.md
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+nul

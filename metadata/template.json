@@ -1,0 +1,264 @@
+{
+  "$schema": "./schema/metadata.schema.json",
+  "package": {
+    "name": "ltem-db-mcp",
+    "version": "1.2.0",
+    "description": "Long-Term Ecological Monitoring Database MCP Server - Production-ready template for exposing MySQL databases via Model Context Protocol",
+    "maintainer": {
+      "name": "CBMC",
+      "email": "contact@cbmc.org",
+      "organization": "Community-Based Marine Conservation"
+    },
+    "license": "MIT",
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/your-org/ltem-db-mcp"
+    },
+    "homepage": "https://github.com/your-org/ltem-db-mcp",
+    "runtime": {
+      "python_version": ">=3.10",
+      "dependencies": [
+        "fastmcp>=0.3.0",
+        "pymysql>=1.1.0",
+        "pydantic>=2.0.0",
+        "scipy>=1.11.0",
+        "numpy>=1.24.0"
+      ],
+      "docker_image": "ltem-mcp:1.2.0",
+      "port": 8000,
+      "base_path": "/mcp"
+    }
+  },
+  "dataset": {
+    "title": "LTEM Historical Database",
+    "description": "Long-term ecological monitoring data from reef fish surveys in the Gulf of California. Contains 20+ years of standardized underwater visual census data including biomass, abundance, size structure, and community composition.",
+    "keywords": [
+      "ecology",
+      "marine biology",
+      "reef fish",
+      "monitoring",
+      "MPA effectiveness",
+      "Gulf of California",
+      "biodiversity",
+      "conservation",
+      "time series"
+    ],
+    "spatial_coverage": {
+      "description": "Gulf of California, Mexico",
+      "regions": [
+        "Cabo Pulmo",
+        "La Paz",
+        "Loreto",
+        "Bahía de Los Angeles",
+        "Isla Espíritu Santo"
+      ],
+      "bounding_box": {
+        "north": 29.5,
+        "south": 23.0,
+        "east": -109.0,
+        "west": -114.0
+      }
+    },
+    "temporal_coverage": {
+      "start": "1999-01-01",
+      "end": "2024-12-31",
+      "frequency": "annual",
+      "total_years": 25
+    },
+    "publisher": {
+      "name": "Community-Based Marine Conservation",
+      "url": "https://cbmc.org"
+    },
+    "contact": {
+      "name": "CBMC Data Team",
+      "email": "data@cbmc.org"
+    },
+    "language": "en",
+    "update_frequency": "annually",
+    "access": "restricted",
+    "license": "CC-BY-NC-4.0"
+  },
+  "schema": {
+    "database": {
+      "type": "MySQL",
+      "version": "8.0",
+      "name": "ecological_monitoring",
+      "tables": [
+        {
+          "name": "ltem_historical_database",
+          "description": "Main observation table with fish survey data",
+          "row_count": 500000,
+          "primary_key": ["Year", "Region", "Reef", "Transect", "Species"],
+          "indexes": [
+            "idx_year",
+            "idx_region",
+            "idx_species",
+            "idx_protection"
+          ]
+        }
+      ]
+    },
+    "entities": [
+      {
+        "name": "Observation",
+        "description": "Individual fish observation record",
+        "fields": [
+          {
+            "name": "Year",
+            "type": "INTEGER",
+            "description": "Survey year",
+            "required": true
+          },
+          {
+            "name": "Region",
+            "type": "VARCHAR(100)",
+            "description": "Geographic region",
+            "required": true
+          },
+          {
+            "name": "Reef",
+            "type": "VARCHAR(100)",
+            "description": "Reef site name",
+            "required": true
+          },
+          {
+            "name": "Transect",
+            "type": "INTEGER",
+            "description": "Transect number (1-4)",
+            "required": true
+          },
+          {
+            "name": "Species",
+            "type": "VARCHAR(200)",
+            "description": "Species scientific name",
+            "required": true
+          },
+          {
+            "name": "Biomass",
+            "type": "DECIMAL(10,2)",
+            "description": "Biomass in g/m²",
+            "required": false,
+            "units": "g/m²"
+          },
+          {
+            "name": "Quantity",
+            "type": "INTEGER",
+            "description": "Number of individuals observed",
+            "required": false
+          },
+          {
+            "name": "Size",
+            "type": "DECIMAL(10,2)",
+            "description": "Individual size in cm",
+            "required": false,
+            "units": "cm"
+          },
+          {
+            "name": "TrophicGroup",
+            "type": "VARCHAR(100)",
+            "description": "Functional/trophic group classification",
+            "required": false
+          },
+          {
+            "name": "Protection",
+            "type": "VARCHAR(50)",
+            "description": "Protection status (MPA, Unprotected, etc.)",
+            "required": false
+          }
+        ]
+      }
+    ]
+  },
+  "endpoints": {
+    "tools": {
+      "count": 59,
+      "categories": [
+        "Data Access",
+        "Biomass Analysis",
+        "Fish Community",
+        "MPA Effectiveness",
+        "Temporal Trends",
+        "Reporting",
+        "Data Quality",
+        "Invertebrates",
+        "Ecosystem Indicators",
+        "Report Generation"
+      ]
+    },
+    "skills": {
+      "count": 11,
+      "available": [
+        "ltem-mpa-effectiveness",
+        "ltem-temporal-trends",
+        "ltem-fish-community",
+        "ltem-data-quality",
+        "ltem-nrsi-index",
+        "ltem-environmental-drivers",
+        "ltem-functional-groups",
+        "ltem-invertebrate-community",
+        "ltem-biomass-productivity",
+        "ltem-bleaching-assessment",
+        "ltem-survey-numeralia"
+      ]
+    },
+    "resources": {
+      "count": 5,
+      "available": [
+        "ltem://schema/tables",
+        "ltem://data-dictionary",
+        "ltem://skills/list",
+        "ltem://metadata/manifest",
+        "ltem://examples/queries"
+      ]
+    }
+  },
+  "provenance": {
+    "source_systems": [
+      {
+        "name": "LTEM Survey Database",
+        "type": "MySQL",
+        "description": "Primary data collection system"
+      }
+    ],
+    "extraction": {
+      "method": "Direct database connection",
+      "frequency": "real-time",
+      "last_updated": "2024-12-31"
+    },
+    "processing": {
+      "steps": [
+        "Quality control validation",
+        "Taxonomic standardization",
+        "Biomass calculation (length-weight relationships)",
+        "Trophic group assignment",
+        "Aggregation to transect level"
+      ],
+      "methodology": "See docs/METHODOLOGY_COMPLIANCE.md"
+    },
+    "quality": {
+      "completeness": 0.98,
+      "accuracy": "Field-validated",
+      "consistency": "Standardized protocols since 1999"
+    }
+  },
+  "analytics": {
+    "statistical_methods": [
+      "Mann-Kendall trend test",
+      "Kruskal-Wallis test",
+      "Spearman correlation",
+      "Bootstrap resampling",
+      "BACI analysis",
+      "Bray-Curtis dissimilarity"
+    ],
+    "aggregation_rules": {
+      "sample_unit": "transect",
+      "hierarchy": "transect → reef → region",
+      "method": "SUM at transect level, then MEAN/MEDIAN at higher levels"
+    }
+  },
+  "generated": {
+    "timestamp": "2026-02-16T18:00:00Z",
+    "generator": "ltem-mcp metadata builder",
+    "version": "1.0.0"
+  }
+}

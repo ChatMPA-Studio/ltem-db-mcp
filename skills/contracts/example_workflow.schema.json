@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://cbmc.org/schemas/skills/example_workflow.schema.json",
+  "title": "Example Workflow Skill Input",
+  "description": "Demonstrates skill input validation",
+  "type": "object",
+  "required": ["region"],
+  "properties": {
+    "region": {
+      "type": "string",
+      "description": "Region to analyze",
+      "enum": [
+        "Alto Golfo",
+        "Bahia Banderas",
+        "Cabo Pulmo",
+        "Corredor",
+        "Huatulco",
+        "Islas Marias",
+        "Ixtapa",
+        "La Paz",
+        "La Ventana",
+        "Loreto",
+        "Los Cabos",
+        "Revillagigedo",
+        "San Basilio",
+        "Santa Rosalia"
+      ]
+    }
+  },
+  "additionalProperties": false
+}

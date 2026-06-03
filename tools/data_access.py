@@ -1,0 +1,199 @@
+"""Data access tools for querying LTEM ecological monitoring data."""
+
+import json
+from fastmcp import FastMCP
+from mcp_server.db import execute_select
+
+
+def register(mcp: FastMCP) -> None:
+	"""Register data access tools with the MCP server."""
+
+	@mcp.tool()
+	def get_regions() -> str:
+		"""List all surveyed regions in the LTEM database."""
+		rows = execute_select(
+			"SELECT DISTINCT Region FROM ltem_historical_database ORDER BY Region"
+		)
+		regions = [r["Region"] for r in rows if r.get("Region")]
+		return json.dumps({
+			"data": regions,
+			"meta": {"row_count": len(regions)},
+		})
+
+	@mcp.tool()
+	def get_reefs(region: str | None = None) -> str:
+		"""List reefs/sites, optionally filtered by region.
+
+		Args:
+			region: Filter by region name (e.g., "La Paz", "Cabo Pulmo")
+		"""
+		if region:
+			rows = execute_select(
+				"SELECT DISTINCT IDReef, Reef, Region, MPA "
+				"FROM ltem_historical_database "
+				"WHERE Region = %s "
+				"ORDER BY Reef",
+				params=(region,),
+			)
+		else:
+			rows = execute_select(
+				"SELECT DISTINCT IDReef, Reef, Region, MPA "
+				"FROM ltem_historical_database "
+				"ORDER BY Region, Reef"
+			)
+		return json.dumps({
+			"data": rows,
+			"meta": {
+				"parameters": {"region": region},
+				"row_count": len(rows),
+			},
+		})
+
+	@mcp.tool()
+	def get_species_list(
+		region: str | None = None,
+		year: int | None = None,
+		label: str | None = None,
+	) -> str:
+		"""List species observed in the LTEM surveys.
+
+		Args:
+			region: Filter by region name
+			year: Filter by survey year
+			label: Filter species name (partial match, case-insensitive)
+		"""
+		conditions = []
+		params = []
+
+		if region:
+			conditions.append("h.Region = %s")
+			params.append(region)
+		if year:
+			conditions.append("h.Year = %s")
+			params.append(year)
+		if label:
+			conditions.append("h.Species LIKE %s")
+			params.append(f"%{label}%")
+
+		where = "WHERE " + " AND ".join(conditions) if conditions else ""
+
+		sql = (
+			"SELECT DISTINCT h.IDSpecies, h.Species "
+			"FROM ltem_historical_database h "
+			f"{where} "
+			"ORDER BY h.Species"
+		)
+		rows = execute_select(sql, params=tuple(params) if params else None)
+		return json.dumps({
+			"data": rows,
+			"meta": {
+				"parameters": {"region": region, "year": year, "label": label},
+				"row_count": len(rows),
+			},
+		})
+
+	@mcp.tool()
+	def get_observations(
+		region: str | None = None,
+		reef: str | None = None,
+		year: int | None = None,
+		species: str | None = None,
+		limit: int = 1000,
+	) -> str:
+		"""Query raw observation data from the LTEM historical database.
+
+		Args:
+			region: Filter by region name
+			reef: Filter by reef name
+			year: Filter by survey year
+			species: Filter by species name (exact match)
+			limit: Maximum rows to return (default 1000, max 5000)
+		"""
+		conditions = []
+		params = []
+
+		if region:
+			conditions.append("Region = %s")
+			params.append(region)
+		if reef:
+			conditions.append("Reef = %s")
+			params.append(reef)
+		if year:
+			conditions.append("Year = %s")
+			params.append(year)
+		if species:
+			conditions.append("Species = %s")
+			params.append(species)
+
+		where = "WHERE " + " AND ".join(conditions) if conditions else ""
+		safe_limit = min(max(1, limit), 5000)
+
+		sql = (
+			"SELECT Year, Month, Day, Region, Reef, Habitat, MPA, Transect, "
+			"Area, IDSpecies, Species, Quantity, Size, Biomass "
+			f"FROM ltem_historical_database {where} "
+			f"LIMIT {safe_limit}"
+		)
+		rows = execute_select(sql, params=tuple(params) if params else None)
+
+		# Convert Decimal types to float for JSON serialization
+		for row in rows:
+			for k, v in row.items():
+				if hasattr(v, 'as_integer_ratio'):
+					row[k] = float(v)
+
+		return json.dumps({
+			"data": rows,
+			"meta": {
+				"parameters": {
+					"region": region,
+					"reef": reef,
+					"year": year,
+					"species": species,
+					"limit": safe_limit,
+				},
+				"row_count": len(rows),
+				"warnings": (
+					["Result truncated at limit"] if len(rows) == safe_limit else []
+				),
+			},
+		})
+
+	@mcp.tool()
+	def survey_effort_summary(group_by: str = "Year") -> str:
+		"""Summarize survey effort (transect counts, reef counts, species counts).
+
+		Args:
+			group_by: Group results by 'Year', 'Region', or 'MPA'
+		"""
+		allowed_groups = {"Year", "Region", "MPA"}
+		if group_by not in allowed_groups:
+			return json.dumps({
+				"error": f"group_by must be one of: {', '.join(sorted(allowed_groups))}",
+			})
+
+		sql = (
+			f"SELECT {group_by}, "
+			"COUNT(DISTINCT Reef) AS reef_count, "
+			"COUNT(DISTINCT CONCAT(Year, '-', Reef, '-', Transect)) AS transect_count, "
+			"COUNT(DISTINCT Species) AS species_count, "
+			"SUM(Quantity) AS total_individuals "
+			f"FROM ltem_historical_database "
+			f"GROUP BY {group_by} "
+			f"ORDER BY {group_by}"
+		)
+		rows = execute_select(sql)
+
+		for row in rows:
+			for k, v in row.items():
+				if hasattr(v, 'as_integer_ratio'):
+					row[k] = float(v)
+
+		return json.dumps({
+			"data": rows,
+			"meta": {
+				"parameters": {"group_by": group_by},
+				"row_count": len(rows),
+				"aggregation": f"Grouped by {group_by}",
+			},
+		})
