@@ -82,6 +82,18 @@ else:
 
 
 # ---------------------------------------------------------------------------
+# TLS / SSL settings (optional, OFF by default)
+# ---------------------------------------------------------------------------
+# The RDS instance supports TLS but does not require it, so the default is a
+# plain connection (unchanged behavior). Set DB_SSL=true to encrypt the
+# connection; point DB_SSL_CA at Amazon's RDS CA bundle to also verify the
+# server certificate.
+
+DB_SSL: bool = os.getenv("DB_SSL", "false").strip().lower() in ("1", "true", "yes", "on")
+DB_SSL_CA: str | None = os.getenv("DB_SSL_CA") or None
+
+
+# ---------------------------------------------------------------------------
 # Logging setup
 # ---------------------------------------------------------------------------
 

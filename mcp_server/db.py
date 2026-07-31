@@ -12,7 +12,7 @@ def get_connection() -> pymysql.connections.Connection:
 
 	Raises RuntimeError if connection fails.
 	"""
-	return pymysql.connect(
+	conn_kwargs = dict(
 		host=config.DB_HOST,
 		port=config.DB_PORT,
 		user=config.DB_USER,
@@ -24,6 +24,15 @@ def get_connection() -> pymysql.connections.Connection:
 		connect_timeout=10,
 		charset='utf8mb4',
 	)
+
+	# Optional TLS (OFF by default). With a CA bundle the server cert is
+	# verified; without one, the connection is encrypted but unverified.
+	if config.DB_SSL:
+		conn_kwargs["ssl"] = (
+			{"ca": config.DB_SSL_CA} if config.DB_SSL_CA else {"check_hostname": False}
+		)
+
+	return pymysql.connect(**conn_kwargs)
 
 
 def execute_select(
