@@ -160,6 +160,85 @@ def register(mcp: FastMCP) -> None:
 		})
 
 	@mcp.tool()
+	def get_nrsi_data(
+		mpa: str | None = None,
+		region: str | None = None,
+		reef: str | None = None,
+		year: int | None = None,
+	) -> str:
+		"""Raw biomass per transect × TrophicLevelF, ready for NRSI computation.
+
+		Returns one row per (transect, TrophicLevelF) combination — the unit
+		needed to classify UTL/LTL/CTL and compute the Normalized Reef State Index.
+		No row cap. Fixed filters: Label='PEC', Biomass IS NOT NULL, TrophicLevelF IS NOT NULL.
+
+		Output columns: time (Year), value (SUM Biomass), TrophicLevelF,
+		transect (Year-Region-Reef-Habitat-Depth-Transect), reef, region.
+
+		Args:
+			mpa: Filter by MPA status
+			region: Filter by region name
+			reef: Filter by reef name
+			year: Filter by survey year
+		"""
+		conditions = [
+			"Label = 'PEC'",
+			"Biomass IS NOT NULL",
+			"TrophicLevelF IS NOT NULL",
+		]
+		params = []
+
+		if mpa:
+			conditions.append("MPA = %s")
+			params.append(mpa)
+		if region:
+			conditions.append("Region = %s")
+			params.append(region)
+		if reef:
+			conditions.append("Reef = %s")
+			params.append(reef)
+		if year:
+			conditions.append("Year = %s")
+			params.append(year)
+
+		where = "WHERE " + " AND ".join(conditions)
+
+		sql = (
+			"SELECT "
+			"Year AS time, "
+			"SUM(Biomass) AS value, "
+			"TrophicLevelF, "
+			"CONCAT_WS('-', Year, Region, Reef, Habitat, Depth, Transect) AS transect, "
+			"Reef AS reef, "
+			"Region AS region "
+			f"FROM ltem_historical_database {where} "
+			"GROUP BY Year, Region, Reef, Habitat, Depth, Transect, TrophicLevelF "
+			"ORDER BY Year, Region, Reef, Transect"
+		)
+
+		rows = execute_select(sql, params=tuple(params) if params else None, max_rows=500000)
+
+		for row in rows:
+			for k, v in row.items():
+				if hasattr(v, 'as_integer_ratio'):
+					row[k] = float(v)
+
+		return json.dumps({
+			"data": rows,
+			"meta": {
+				"parameters": {
+					"mpa": mpa,
+					"region": region,
+					"reef": reef,
+					"year": year,
+				},
+				"row_count": len(rows),
+				"columns": ["time", "value", "TrophicLevelF", "transect", "reef", "region"],
+				"description": "Biomass per transect × TrophicLevelF for NRSI computation",
+			},
+		})
+
+	@mcp.tool()
 	def survey_effort_summary(group_by: str = "Year") -> str:
 		"""Summarize survey effort (transect counts, reef counts, species counts).
 
