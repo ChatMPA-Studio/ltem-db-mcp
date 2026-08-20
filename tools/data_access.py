@@ -276,3 +276,171 @@ def register(mcp: FastMCP) -> None:
 				"aggregation": f"Grouped by {group_by}",
 			},
 		})
+
+
+	@mcp.tool()
+	def get_biomass_data(
+		mpa: str | None = None,
+		region: str | None = None,
+		reef: str | None = None,
+		year: int | None = None,
+	) -> str:
+		"""Reef-year fish biomass ready for ltem-fish-biomass skill computation.
+
+		Returns one row per (Year, Reef, Region) — the aggregation unit needed
+		to fit the GAM trend model. Biomass is summed per transect then averaged
+		per reef-year. No row cap. Fixed filters: Label='PEC', Biomass IS NOT NULL.
+
+		Output columns: time (Year), reef (Reef), value (mean g/m² per reef-year),
+		region (Region), n_transects (number of transects contributing).
+
+		Args:
+			mpa: Filter by MPA status
+			region: Filter by region name
+			reef: Filter by reef name
+			year: Filter by survey year
+		"""
+		conditions = [
+			"Label = 'PEC'",
+			"Biomass IS NOT NULL",
+		]
+		params = []
+
+		if mpa:
+			conditions.append("MPA = %s")
+			params.append(mpa)
+		if region:
+			conditions.append("Region = %s")
+			params.append(region)
+		if reef:
+			conditions.append("Reef = %s")
+			params.append(reef)
+		if year:
+			conditions.append("Year = %s")
+			params.append(year)
+
+		where = "WHERE " + " AND ".join(conditions)
+
+		sql = (
+			"SELECT "
+			"Year AS time, "
+			"Reef AS reef, "
+			"Region AS region, "
+			"AVG(transect_biomass) AS value, "
+			"COUNT(*) AS n_transects "
+			"FROM ("
+			"  SELECT Year, Region, Reef, Habitat, Depth, Transect, "
+			"  SUM(Biomass) AS transect_biomass "
+			f"  FROM ltem_historical_database {where} "
+			"  GROUP BY Year, Region, Reef, Habitat, Depth, Transect"
+			") AS transect_agg "
+			"GROUP BY Year, Reef, Region "
+			"ORDER BY Year, Region, Reef"
+		)
+
+		rows = execute_select(sql, params=tuple(params) if params else None, max_rows=500000)
+
+		for row in rows:
+			for k, v in row.items():
+				if hasattr(v, "as_integer_ratio"):
+					row[k] = float(v)
+
+		return json.dumps({
+			"data": rows,
+			"meta": {
+				"parameters": {
+					"mpa": mpa,
+					"region": region,
+					"reef": reef,
+					"year": year,
+				},
+				"row_count": len(rows),
+				"columns": ["time", "reef", "region", "value", "n_transects"],
+				"description": "Mean fish biomass (g/m²) per reef-year for GAM trend fitting",
+			},
+		})
+
+	@mcp.tool()
+	def get_invertebrate_data(
+		mpa: str | None = None,
+		region: str | None = None,
+		reef: str | None = None,
+		year: int | None = None,
+	) -> str:
+		"""Reef-year invertebrate abundance by taxon, ready for ltem-invertebrate-abundance skill.
+
+		Returns one row per (Year, Reef, Region, Taxa2) — the aggregation unit
+		needed to fit the per-taxon GAM trend model. Abundance is summed per
+		transect then averaged per reef-year-taxa. No row cap.
+		Fixed filters: Label='INV'.
+
+		Output columns: time (Year), reef (Reef), region (Region),
+		taxa (Taxa2), value (mean count per reef-year-taxa), n_transects.
+
+		Args:
+			mpa: Filter by MPA status
+			region: Filter by region name
+			reef: Filter by reef name
+			year: Filter by survey year
+		"""
+		conditions = [
+			"Label = 'INV'",
+			"Taxa2 IS NOT NULL",
+		]
+		params = []
+
+		if mpa:
+			conditions.append("MPA = %s")
+			params.append(mpa)
+		if region:
+			conditions.append("Region = %s")
+			params.append(region)
+		if reef:
+			conditions.append("Reef = %s")
+			params.append(reef)
+		if year:
+			conditions.append("Year = %s")
+			params.append(year)
+
+		where = "WHERE " + " AND ".join(conditions)
+
+		sql = (
+			"SELECT "
+			"Year AS time, "
+			"Reef AS reef, "
+			"Region AS region, "
+			"Taxa2 AS taxa, "
+			"AVG(transect_qty) AS value, "
+			"COUNT(*) AS n_transects "
+			"FROM ("
+			"  SELECT Year, Region, Reef, Habitat, Depth, Transect, Taxa2, "
+			"  SUM(Quantity) AS transect_qty "
+			f"  FROM ltem_historical_database {where} "
+			"  GROUP BY Year, Region, Reef, Habitat, Depth, Transect, Taxa2"
+			") AS transect_agg "
+			"GROUP BY Year, Reef, Region, Taxa2 "
+			"ORDER BY Year, Region, Reef, Taxa2"
+		)
+
+		rows = execute_select(sql, params=tuple(params) if params else None, max_rows=500000)
+
+		for row in rows:
+			for k, v in row.items():
+				if hasattr(v, "as_integer_ratio"):
+					row[k] = float(v)
+
+		return json.dumps({
+			"data": rows,
+			"meta": {
+				"parameters": {
+					"mpa": mpa,
+					"region": region,
+					"reef": reef,
+					"year": year,
+				},
+				"row_count": len(rows),
+				"columns": ["time", "reef", "region", "taxa", "value", "n_transects"],
+				"description": "Mean invertebrate abundance per reef-year-taxon for GAM trend fitting",
+			},
+		})
+
