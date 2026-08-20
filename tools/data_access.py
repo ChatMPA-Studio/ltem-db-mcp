@@ -303,6 +303,8 @@ def register(mcp: FastMCP) -> None:
 		conditions = [
 			"Label = 'PEC'",
 			"Biomass IS NOT NULL",
+			"Family != 'Carangidae'",
+			"NOT (Region = 'Corredor' AND Family IN ('Haemulidae','Carangidae') AND Biomass > 3)",
 		]
 		params = []
 
