@@ -464,7 +464,7 @@ def register(mcp: FastMCP) -> None:
 		})
 
 	@mcp.tool()
-	def functional_group_biomass(
+	def behavioral_group_biomass(
 		region: str | None = None,
 		mpa: str | None = None,
 		reef: str | None = None,
