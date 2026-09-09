@@ -464,6 +464,112 @@ def register(mcp: FastMCP) -> None:
 		})
 
 	@mcp.tool()
+	def functional_group_biomass(
+		region: str | None = None,
+		mpa: str | None = None,
+		reef: str | None = None,
+		year: int | None = None,
+	) -> str:
+		"""Fish biomass by behavioral functional group (functional_name), one row per year × group. Unit: g/m².
+
+		Uses the species_traits lookup table (JOIN on Species) to assign each
+		observation to one of 6 behavioral categories from cluster_to_create_traits.csv.
+		Species with functional_name = 'Pelagic' or without a match in species_traits
+		are excluded automatically.
+
+		Aggregation (replicates run_tests.R:117-124):
+		  1. SUM biomass per (year, reef, transect, functional_name)
+		  2. AVG across transects per (year, reef, functional_name)
+		  3. AVG across reefs per (year, functional_name)
+
+		Preprocessing filters applied:
+		  - Label = 'PEC'
+		  - Biomass IS NOT NULL
+		  - Family != 'Carangidae'
+		  - Corredor exclusion: NOT (Region='Corredor' AND Family IN ('Haemulidae','Carangidae') AND Biomass > 3)
+		  - functional_name IN the 6 valid categories
+
+		Do not combine region and mpa — the filter is AND and the result would be
+		more restrictive than either alone.
+
+		Args:
+			region: Filter by LTEM region name (e.g. "Cabo Pulmo").
+			mpa: Filter by MPA name. Do not combine with region.
+			reef: Filter by reef name.
+			year: Filter by survey year. Omit for full time series.
+		"""
+		VALID_FG = (
+			'GenPred_solitary', 'GenPred_schooling', 'EpiBent_schooling',
+			'Crip_schooling', 'Crip_solitary', 'Plank',
+		)
+		fg_placeholders = ", ".join(["%s"] * len(VALID_FG))
+
+		conditions = [
+			"h.Label = 'PEC'",
+			"h.Biomass IS NOT NULL",
+			"h.Family != 'Carangidae'",
+			f"t.functional_name IN ({fg_placeholders})",
+			"NOT (h.Region = 'Corredor' AND h.Family IN ('Haemulidae', 'Carangidae') AND h.Biomass > 3)",
+		]
+		params: list = list(VALID_FG)
+
+		if mpa:
+			conditions.append("h.MPA = %s")
+			params.append(mpa)
+		if region:
+			conditions.append("h.Region = %s")
+			params.append(region)
+		if reef:
+			conditions.append("h.Reef = %s")
+			params.append(reef)
+		if year:
+			conditions.append("h.Year = %s")
+			params.append(year)
+
+		where = "WHERE " + " AND ".join(conditions)
+
+		sql = (
+			"SELECT year, functional_name, "
+			"AVG(reef_mean) AS mean_biomass, "
+			"SUM(n_transects) AS n_transects "
+			"FROM ("
+			"  SELECT year, reef, functional_name, "
+			"  AVG(transect_sum) AS reef_mean, "
+			"  COUNT(*) AS n_transects "
+			"  FROM ("
+			"    SELECT h.Year AS year, h.Reef AS reef, h.Transect, t.functional_name, "
+			"    SUM(h.Biomass) AS transect_sum "
+			"    FROM ltem_historical_database h "
+			"    JOIN species_traits t ON h.Species = t.Species "
+			f"   {where} "
+			"    GROUP BY h.Year, h.Reef, h.Transect, t.functional_name"
+			"  ) transect_level "
+			"  GROUP BY year, reef, functional_name"
+			") reef_level "
+			"GROUP BY year, functional_name "
+			"ORDER BY year, functional_name"
+		)
+
+		rows = execute_select(sql, params=tuple(params))
+		rows = _serialize_rows(rows)
+
+		return json.dumps({
+			"data": rows,
+			"meta": {
+				"parameters": {"region": region, "mpa": mpa, "reef": reef, "year": year},
+				"row_count": len(rows),
+				"columns": ["year", "functional_name", "mean_biomass", "n_transects"],
+				"unit": "g/m²",
+				"aggregation": "SUM per transect → AVG per reef → AVG per year × functional_name",
+				"valid_groups": list(VALID_FG),
+				"description": (
+					"Mean fish biomass (g/m²) per year × behavioral functional group. "
+					"Maps directly to TrophicYear schema fields."
+				),
+			},
+		})
+
+	@mcp.tool()
 	def latitudinal_gradient() -> str:
 		"""Biomass trends along a latitudinal gradient.
 
