@@ -485,9 +485,11 @@ def register(mcp: FastMCP) -> None:
 		Preprocessing filters applied:
 		  - Label = 'PEC'
 		  - Biomass IS NOT NULL
-		  - Family != 'Carangidae'
-		  - Corredor exclusion: NOT (Region='Corredor' AND Family IN ('Haemulidae','Carangidae') AND Biomass > 3)
 		  - functional_name IN the 6 valid categories
+
+		Note: taxonomic/analysis filters (Carangidae, Corredor Haemulidae/Carangidae
+		outliers) are intentionally NOT applied here — those are analysis decisions
+		owned by the skill layer, consistent with get_biomass_data (see fe0d707).
 
 		Do not combine region and mpa — the filter is AND and the result would be
 		more restrictive than either alone.
@@ -507,9 +509,7 @@ def register(mcp: FastMCP) -> None:
 		conditions = [
 			"h.Label = 'PEC'",
 			"h.Biomass IS NOT NULL",
-			"h.Family != 'Carangidae'",
 			f"t.functional_name IN ({fg_placeholders})",
-			"NOT (h.Region = 'Corredor' AND h.Family IN ('Haemulidae', 'Carangidae') AND h.Biomass > 3)",
 		]
 		params: list = list(VALID_FG)
 
