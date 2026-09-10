@@ -570,6 +570,166 @@ def register(mcp: FastMCP) -> None:
 		})
 
 	@mcp.tool()
+	def family_biomass(
+		region: str | None = None,
+		mpa: str | None = None,
+		reef: str | None = None,
+		year: int | None = None,
+		families: list[str] | None = None,
+	) -> str:
+		"""Fish biomass by taxonomic family, one row per year × family. Unit: g/m².
+
+		Same preprocessing as get_biomass_data: Label='PEC', Biomass IS NOT NULL,
+		SUM per transect then AVG across transects per year × family.
+
+		Do not combine region and mpa — the filter is AND and the result would be
+		more restrictive than either alone.
+
+		Args:
+			region: Filter by LTEM region name (e.g. "Cabo Pulmo").
+			mpa: Filter by MPA name. Do not combine with region.
+			reef: Filter by reef name.
+			year: Filter by survey year. Omit for full time series.
+			families: Restrict output to specific families
+				(e.g. ["Serranidae", "Lutjanidae", "Carangidae"]).
+				Omit to return all families.
+		"""
+		conditions = ["Label = 'PEC'", "Biomass IS NOT NULL", "Family IS NOT NULL"]
+		params = []
+
+		if mpa:
+			conditions.append("MPA = %s")
+			params.append(mpa)
+		if region:
+			conditions.append("Region = %s")
+			params.append(region)
+		if reef:
+			conditions.append("Reef = %s")
+			params.append(reef)
+		if year:
+			conditions.append("Year = %s")
+			params.append(year)
+		if families:
+			placeholders = ", ".join(["%s"] * len(families))
+			conditions.append(f"Family IN ({placeholders})")
+			params.extend(families)
+
+		where = "WHERE " + " AND ".join(conditions)
+
+		sql = (
+			"SELECT Year AS year, Family AS family, "
+			"AVG(transect_biomass) AS mean_biomass, "
+			"COUNT(*) AS n_transects "
+			"FROM ("
+			"  SELECT Year, Reef, Transect, Family, "
+			"  SUM(Biomass) AS transect_biomass "
+			f"  FROM ltem_historical_database {where} "
+			"  GROUP BY Year, Reef, Transect, Family"
+			") sub "
+			"GROUP BY Year, Family "
+			"ORDER BY Year, mean_biomass DESC"
+		)
+
+		rows = execute_select(sql, params=tuple(params) if params else None, max_rows=500000)
+		rows = _serialize_rows(rows)
+
+		return json.dumps({
+			"data": rows,
+			"meta": {
+				"parameters": {
+					"region": region,
+					"mpa": mpa,
+					"reef": reef,
+					"year": year,
+					"families": families,
+				},
+				"row_count": len(rows),
+				"columns": ["year", "family", "mean_biomass", "n_transects"],
+				"unit": "g/m²",
+				"aggregation": "SUM biomass per transect, then AVG across transects per year × family",
+				"description": "Mean fish biomass (g/m²) per year × taxonomic family",
+			},
+		})
+
+	@mcp.tool()
+	def species_biomass(
+		region: str | None = None,
+		mpa: str | None = None,
+		reef: str | None = None,
+		year: int | None = None,
+	) -> str:
+		"""Fish biomass by species, one row per species. Unit: g/m².
+
+		Returns a sortable table for top-species-by-biomass ranking. The ranking
+		itself (top-N selection) is the caller's responsibility.
+
+		Same preprocessing as get_biomass_data: Label='PEC', Biomass IS NOT NULL,
+		SUM per transect then AVG across transects. Biomass is collapsed across
+		years unless year is specified.
+
+		Do not combine region and mpa — the filter is AND and the result would be
+		more restrictive than either alone.
+
+		Args:
+			region: Filter by LTEM region name (e.g. "Cabo Pulmo").
+			mpa: Filter by MPA name. Do not combine with region.
+			reef: Filter by reef name.
+			year: Filter by survey year. Omit to average across all years.
+		"""
+		conditions = ["Label = 'PEC'", "Biomass IS NOT NULL", "Species IS NOT NULL"]
+		params = []
+
+		if mpa:
+			conditions.append("MPA = %s")
+			params.append(mpa)
+		if region:
+			conditions.append("Region = %s")
+			params.append(region)
+		if reef:
+			conditions.append("Reef = %s")
+			params.append(reef)
+		if year:
+			conditions.append("Year = %s")
+			params.append(year)
+
+		where = "WHERE " + " AND ".join(conditions)
+
+		sql = (
+			"SELECT IDSpecies AS species_id, Species AS species_name, "
+			"TrophicGroup AS trophic_group, "
+			"AVG(transect_biomass) AS mean_biomass, "
+			"COUNT(*) AS n_transects "
+			"FROM ("
+			"  SELECT Year, Reef, Transect, IDSpecies, Species, TrophicGroup, "
+			"  SUM(Biomass) AS transect_biomass "
+			f"  FROM ltem_historical_database {where} "
+			"  GROUP BY Year, Reef, Transect, IDSpecies, Species, TrophicGroup"
+			") sub "
+			"GROUP BY IDSpecies, Species, TrophicGroup "
+			"ORDER BY mean_biomass DESC"
+		)
+
+		rows = execute_select(sql, params=tuple(params) if params else None, max_rows=500000)
+		rows = _serialize_rows(rows)
+
+		return json.dumps({
+			"data": rows,
+			"meta": {
+				"parameters": {
+					"region": region,
+					"mpa": mpa,
+					"reef": reef,
+					"year": year,
+				},
+				"row_count": len(rows),
+				"columns": ["species_id", "species_name", "trophic_group", "mean_biomass", "n_transects"],
+				"unit": "g/m²",
+				"aggregation": "SUM biomass per transect, then AVG across transects per species",
+				"description": "Mean fish biomass (g/m²) per species, sortable for top-N ranking",
+			},
+		})
+
+	@mcp.tool()
 	def latitudinal_gradient() -> str:
 		"""Biomass trends along a latitudinal gradient.
 
