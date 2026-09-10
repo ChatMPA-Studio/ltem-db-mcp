@@ -7,6 +7,7 @@ ALLOWED_TABLES = {
 	'ltem_historical_database',
 	'ltem_monitoring_species',
 	'ltem_monitoring_reefs',
+	'species_traits',
 }
 
 # SQL keywords that indicate write/destructive operations
