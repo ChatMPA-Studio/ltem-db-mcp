@@ -94,6 +94,19 @@ DB_SSL_CA: str | None = os.getenv("DB_SSL_CA") or None
 
 
 # ---------------------------------------------------------------------------
+# Connection pool settings
+# ---------------------------------------------------------------------------
+# Every tool call used to open and close its own MySQL connection (TCP +
+# auth handshake per call). DB_POOL_MAX is the hard cap on connections held
+# open against RDS; requests beyond it block instead of erroring (see
+# db.py's use of PooledDB(blocking=True)).
+
+DB_POOL_MIN: int = int(os.getenv("DB_POOL_MIN", "1"))
+DB_POOL_MAX_CACHED: int = int(os.getenv("DB_POOL_MAX_CACHED", "5"))
+DB_POOL_MAX: int = int(os.getenv("DB_POOL_MAX", "10"))
+
+
+# ---------------------------------------------------------------------------
 # Logging setup
 # ---------------------------------------------------------------------------
 
@@ -118,6 +131,9 @@ def print_startup_summary() -> None:
     logger.info("  DB User:     %s", DB_USER)
     logger.info("  DB Name:     %s", DB_NAME)
     logger.info("  DB Password: %s", "****" if DB_PASSWORD else "NOT SET")
+    logger.info(
+        "  DB Pool:     min=%s max_cached=%s max=%s", DB_POOL_MIN, DB_POOL_MAX_CACHED, DB_POOL_MAX
+    )
     if DATABASE_URL:
         logger.info("  Source:      DATABASE_URL")
     else:
