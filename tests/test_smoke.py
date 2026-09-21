@@ -366,3 +366,82 @@ class TestNewColumnQueries:
 			"WHERE Degree IS NOT NULL"
 		)
 		assert rows[0]['n'] >= 3, "Expected >=3 distinct latitude degrees"
+
+
+# ---------------------------------------------------------------------------
+# 8. Report generator SQL injection regression
+# ---------------------------------------------------------------------------
+# tools/report_generator.py used to build its `region`/`year` filters with
+# f-strings (e.g. f"... AND Region = '{region}'") instead of the %s +
+# params= pattern used everywhere else in the codebase. These tests mock
+# execute_select and assert a malicious value never appears in the raw SQL
+# text handed to it — it must only travel through `params`. That's the
+# structural guarantee that makes injection impossible regardless of the
+# payload, so the assertion doesn't need to enumerate attack strings.
+#
+# Requires the `report` extra (matplotlib/seaborn) to import report_generator,
+# but not a live database — execute_select is mocked, no .env needed.
+# ---------------------------------------------------------------------------
+
+class TestReportGeneratorSQLInjection:
+	"""Regression test for the SQL injection fixed in tools/report_generator.py."""
+
+	MALICIOUS_REGION = "x' OR SLEEP(5)-- "
+
+	# One row with every key any of the four report builders reads, so the
+	# same mocked return value satisfies whichever query is being answered.
+	GENERIC_ROW = {
+		"protection_level": "Cabo Pulmo", "mean_biomass": 10.0, "std_biomass": 1.0,
+		"n_reefs": 2, "n_transects": 5, "Biomass": 10.0, "Year": 2020, "value": 10.0,
+		"Species": "Test species", "total_abundance": 100, "TrophicGroup": "Herbivoro",
+		"total_biomass": 50.0, "n_rows": 10, "null_size": 1, "null_biomass": 1,
+		"null_trophic": 1, "Region": "La Paz", "n_years": 5,
+	}
+
+	def _assert_region_never_leaks_into_raw_sql(self, mock_execute):
+		assert mock_execute.call_args_list, "execute_select was never called"
+		for call in mock_execute.call_args_list:
+			sql = call.args[0]
+			assert self.MALICIOUS_REGION not in sql, (
+				f"Malicious region leaked into raw SQL text: {sql!r}"
+			)
+
+	def test_mpa_effectiveness_report_parameterizes_region(self):
+		from unittest.mock import patch
+		from tools.report_generator import _create_mpa_effectiveness_report
+
+		with patch(
+			"tools.report_generator.execute_select", return_value=[self.GENERIC_ROW]
+		) as mock_exec:
+			_create_mpa_effectiveness_report(region=self.MALICIOUS_REGION)
+		self._assert_region_never_leaks_into_raw_sql(mock_exec)
+
+	def test_temporal_trends_report_parameterizes_region(self):
+		from unittest.mock import patch
+		from tools.report_generator import _create_temporal_trends_report
+
+		with patch(
+			"tools.report_generator.execute_select", return_value=[self.GENERIC_ROW]
+		) as mock_exec:
+			_create_temporal_trends_report(region=self.MALICIOUS_REGION)
+		self._assert_region_never_leaks_into_raw_sql(mock_exec)
+
+	def test_community_structure_report_parameterizes_region_and_year(self):
+		from unittest.mock import patch
+		from tools.report_generator import _create_community_structure_report
+
+		with patch(
+			"tools.report_generator.execute_select", return_value=[self.GENERIC_ROW]
+		) as mock_exec:
+			_create_community_structure_report(region=self.MALICIOUS_REGION, year=2020)
+		self._assert_region_never_leaks_into_raw_sql(mock_exec)
+
+	def test_data_quality_report_parameterizes_region(self):
+		from unittest.mock import patch
+		from tools.report_generator import _create_data_quality_report
+
+		with patch(
+			"tools.report_generator.execute_select", return_value=[self.GENERIC_ROW]
+		) as mock_exec:
+			_create_data_quality_report(region=self.MALICIOUS_REGION)
+		self._assert_region_never_leaks_into_raw_sql(mock_exec)

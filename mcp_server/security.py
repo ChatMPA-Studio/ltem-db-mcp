@@ -20,6 +20,28 @@ DENIED_KEYWORDS = [
 DEFAULT_MAX_ROWS = 5000
 DEFAULT_TIMEOUT = 20
 
+# ---------------------------------------------------------------------------
+# Precompiled regex patterns.
+#
+# validate_sql() and enforce_limit() run on every single query now that
+# db.py pools connections — the TCP+auth handshake that used to dominate a
+# query's latency is gone, so what used to be negligible overhead next to
+# it (rebuilding and re-caching these patterns on every call) is worth
+# paying once at import time instead.
+# ---------------------------------------------------------------------------
+
+_SELECT_SHOW_DESCRIBE_RE = re.compile(r'^(SELECT|SHOW|DESCRIBE|DESC)\b')
+_SELECT_INTO_RE = re.compile(r'\bSELECT\b.*\bINTO\b')
+_DENIED_KEYWORD_PATTERNS = [
+	(keyword, re.compile(r'\b' + keyword + r'\b'))
+	for keyword in DENIED_KEYWORDS
+	if keyword != 'INTO'  # INTO gets the SELECT...INTO-specific check above
+]
+_TABLE_REF_RE = re.compile(r'(?:FROM|JOIN)\s+`?(\w+)`?')
+_LIMIT_RE = re.compile(r'\bLIMIT\s+(\d+)')
+_LIMIT_SUB_RE = re.compile(r'\bLIMIT\s+\d+', flags=re.IGNORECASE)
+_SELECT_START_RE = re.compile(r'^\s*(SELECT)\b')
+
 
 def validate_sql(sql: str) -> None:
 	"""Validate that SQL is a safe SELECT statement.
@@ -32,21 +54,18 @@ def validate_sql(sql: str) -> None:
 	normalized = sql.strip().upper()
 
 	# Must start with SELECT or SHOW or DESCRIBE
-	if not re.match(r'^(SELECT|SHOW|DESCRIBE|DESC)\b', normalized):
+	if not _SELECT_SHOW_DESCRIBE_RE.match(normalized):
 		raise ValueError("Only SELECT, SHOW, and DESCRIBE statements are allowed")
 
-	# Check for denied keywords (as whole words, not substrings)
-	for keyword in DENIED_KEYWORDS:
-		# Use word boundary to avoid false positives (e.g., "INTO" in "INFORMATION")
-		# But be strict: deny if keyword appears as a standalone word
-		pattern = r'\b' + keyword + r'\b'
-		# Skip INTO check for SELECT ... INTO pattern check
-		if keyword == 'INTO':
-			# Allow "INTO" only as part of table names, deny SELECT INTO
-			if re.search(r'\bSELECT\b.*\bINTO\b', normalized):
-				raise ValueError(f"SQL contains denied keyword: {keyword}")
-			continue
-		if re.search(pattern, normalized):
+	# SELECT ... INTO (e.g. INTO OUTFILE) is the one denied keyword that
+	# needs a shape-specific check instead of a plain word-boundary search:
+	# "INTO" also shows up harmlessly in table/column names.
+	if _SELECT_INTO_RE.search(normalized):
+		raise ValueError("SQL contains denied keyword: INTO")
+
+	# Check for the remaining denied keywords (as whole words, not substrings)
+	for keyword, pattern in _DENIED_KEYWORD_PATTERNS:
+		if pattern.search(normalized):
 			raise ValueError(f"SQL contains denied keyword: {keyword}")
 
 	# Check that only whitelisted tables are referenced
@@ -57,8 +76,7 @@ def _validate_table_references(normalized_sql: str) -> None:
 	"""Check that only whitelisted tables appear in FROM/JOIN clauses."""
 	# Extract table names from FROM and JOIN clauses
 	# Match: FROM table, JOIN table, FROM `table`
-	table_pattern = r'(?:FROM|JOIN)\s+`?(\w+)`?'
-	referenced = re.findall(table_pattern, normalized_sql)
+	referenced = _TABLE_REF_RE.findall(normalized_sql)
 
 	allowed_upper = {t.upper() for t in ALLOWED_TABLES}
 	# Also allow INFORMATION_SCHEMA for DESCRIBE/SHOW equivalents
@@ -79,21 +97,16 @@ def enforce_limit(sql: str, max_rows: int = DEFAULT_MAX_ROWS) -> str:
 	normalized = sql.strip().upper()
 
 	# Check if LIMIT already exists
-	limit_match = re.search(r'\bLIMIT\s+(\d+)', normalized)
+	limit_match = _LIMIT_RE.search(normalized)
 	if limit_match:
 		existing_limit = int(limit_match.group(1))
 		if existing_limit > max_rows:
 			# Replace with capped limit
-			sql = re.sub(
-				r'\bLIMIT\s+\d+',
-				f'LIMIT {max_rows}',
-				sql,
-				flags=re.IGNORECASE,
-			)
+			sql = _LIMIT_SUB_RE.sub(f'LIMIT {max_rows}', sql)
 		return sql
 
 	# No LIMIT found — only add for SELECT statements (not SHOW/DESCRIBE)
-	if re.match(r'^\s*(SELECT)\b', normalized):
+	if _SELECT_START_RE.match(normalized):
 		# Strip trailing semicolon before adding LIMIT
 		sql = sql.rstrip().rstrip(';')
 		sql = f"{sql} LIMIT {max_rows}"

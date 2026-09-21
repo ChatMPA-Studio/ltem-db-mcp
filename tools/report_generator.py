@@ -12,6 +12,7 @@ Uses Matplotlib/Seaborn for static, publication-quality visualizations.
 import base64
 import io
 import json
+from collections import defaultdict
 from datetime import datetime
 from typing import Any
 
@@ -340,32 +341,53 @@ def _create_mpa_effectiveness_report(
 		FROM ltem_historical_database
 		WHERE Biomass IS NOT NULL AND Biomass > 0 AND Label = 'PEC'
 	"""
+	params = []
 	if region:
-		sql += f" AND Region = '{region}'"
+		sql += " AND Region = %s"
+		params.append(region)
 	sql += " GROUP BY protection_level"
 
-	rows = execute_select(sql)
+	rows = execute_select(sql, params=tuple(params) if params else None)
 
 	if rows:
 		# Create box plot
 		fig, ax = plt.subplots(figsize=(10, 6))
 
-		# Get raw data for boxplot
+		# Get raw data for boxplot — one query for every protection level at
+		# once (grouped in Python) instead of one query per level, which used
+		# to re-scan the full table N times for the same WHERE Label='PEC'.
+		raw_sql = (
+			"SELECT COALESCE(MPA, 'Unprotected') AS protection_level, Biomass "
+			"FROM ltem_historical_database "
+			"WHERE Biomass IS NOT NULL AND Biomass > 0 AND Label = 'PEC'"
+		)
+		raw_params = []
+		if region:
+			raw_sql += " AND Region = %s"
+			raw_params.append(region)
+		# No max_rows cap: README documents ~449K rows total across the whole
+		# database (all years/regions/PEC+INV combined), so the PEC-only
+		# subset for a single report should stay well within memory — but
+		# this is an assumption based on that documented figure, not
+		# verified against the live table (no DB credentials in this
+		# session). If this ever needs a cap again, split it per protection
+		# level like before instead of one global LIMIT, otherwise whichever
+		# level MySQL returns first (no ORDER BY) crowds out the others.
+		raw_rows = execute_select(
+			raw_sql, params=tuple(raw_params) if raw_params else None, max_rows=5_000_000
+		)
+
+		values_by_level: dict[str, list[float]] = defaultdict(list)
+		for r in raw_rows:
+			if r['Biomass']:
+				values_by_level[r['protection_level']].append(r['Biomass'])
+
+		# Keep the same order as the aggregate table above.
 		groups = []
 		labels = []
 		for row in rows:
 			prot_level = row['protection_level']
-			sql_data = f"""
-				SELECT Biomass
-				FROM ltem_historical_database
-				WHERE Biomass IS NOT NULL AND Biomass > 0
-				AND COALESCE(MPA, 'Unprotected') = '{prot_level}'
-				AND Label = 'PEC'
-			"""
-			if region:
-				sql_data += f" AND Region = '{region}'"
-			data = execute_select(sql_data, max_rows=5000)
-			biomass_vals = [d['Biomass'] for d in data if d['Biomass']]
+			biomass_vals = values_by_level.get(prot_level, [])
 			if biomass_vals:
 				groups.append(biomass_vals)
 				labels.append(prot_level)
@@ -494,11 +516,13 @@ def _create_temporal_trends_report(
 		FROM ltem_historical_database
 		WHERE Label = 'PEC'
 	"""
+	params = []
 	if region:
-		sql += f" AND Region = '{region}'"
+		sql += " AND Region = %s"
+		params.append(region)
 	sql += " GROUP BY Year ORDER BY Year"
 
-	data = execute_select(sql)
+	data = execute_select(sql, params=tuple(params) if params else None)
 
 	if len(data) >= 4:  # Need at least 4 points for trend analysis
 		years = np.array([d['Year'] for d in data])
@@ -594,15 +618,18 @@ def _create_community_structure_report(
 		WHERE Label = 'PEC'
 	"""
 	filters = []
+	params = []
 	if region:
-		filters.append(f"Region = '{region}'")
+		filters.append("Region = %s")
+		params.append(region)
 	if year:
-		filters.append(f"Year = {year}")
+		filters.append("Year = %s")
+		params.append(year)
 	if filters:
 		sql += " AND " + " AND ".join(filters)
 	sql += " GROUP BY Species ORDER BY total_abundance DESC LIMIT 15"
 
-	species_data = execute_select(sql)
+	species_data = execute_select(sql, params=tuple(params) if params else None)
 
 	if species_data:
 		# Rank-abundance plot
@@ -635,13 +662,16 @@ def _create_community_structure_report(
 		FROM ltem_historical_database
 		WHERE Label = 'PEC' AND TrophicGroup IS NOT NULL AND Biomass > 0
 	"""
+	trophic_params = []
 	if region:
-		trophic_sql += f" AND Region = '{region}'"
+		trophic_sql += " AND Region = %s"
+		trophic_params.append(region)
 	if year:
-		trophic_sql += f" AND Year = {year}"
+		trophic_sql += " AND Year = %s"
+		trophic_params.append(year)
 	trophic_sql += " GROUP BY TrophicGroup"
 
-	trophic_data = execute_select(trophic_sql)
+	trophic_data = execute_select(trophic_sql, params=tuple(trophic_params) if trophic_params else None)
 
 	if trophic_data:
 		# Pie chart
@@ -707,11 +737,13 @@ def _create_data_quality_report(
 		FROM ltem_historical_database
 		WHERE Label = 'PEC'
 	"""
+	params = []
 	if region:
-		sql += f" AND Region = '{region}'"
+		sql += " AND Region = %s"
+		params.append(region)
 	sql += " GROUP BY Year ORDER BY Year"
 
-	completeness_data = execute_select(sql)
+	completeness_data = execute_select(sql, params=tuple(params) if params else None)
 
 	if completeness_data:
 		# Calculate percentages
@@ -773,11 +805,13 @@ def _create_data_quality_report(
 		FROM ltem_historical_database
 		WHERE Label = 'PEC'
 	"""
+	sample_params = []
 	if region:
-		sample_sql += f" AND Region = '{region}'"
+		sample_sql += " AND Region = %s"
+		sample_params.append(region)
 	sample_sql += " GROUP BY Region"
 
-	sample_data = execute_select(sample_sql)
+	sample_data = execute_select(sample_sql, params=tuple(sample_params) if sample_params else None)
 
 	if sample_data:
 		for row in sample_data:

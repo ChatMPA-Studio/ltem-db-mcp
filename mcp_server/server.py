@@ -25,8 +25,7 @@ logger = logging.getLogger(__name__)
 mcp = FastMCP("LTEM Database")
 
 # ---------------------------------------------------------------------------
-# MCP Resources (static + dynamic)
-# ---------------------------------------------------------------------------
+
 
 @mcp.resource("ltem://schema")
 def schema_resource() -> str:
