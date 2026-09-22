@@ -367,15 +367,19 @@ def register(mcp: FastMCP) -> None:
 		reef: str | None = None,
 		year: int | None = None,
 	) -> str:
-		"""Reef-year invertebrate abundance by taxon, ready for ltem-invertebrate-abundance skill.
+		"""Reef-year invertebrate abundance and richness by taxon, ready for ltem-invertebrate-abundance skill.
 
 		Returns one row per (Year, Reef, Region, Taxa2) — the aggregation unit
 		needed to fit the per-taxon GAM trend model. Abundance is summed per
-		transect then averaged per reef-year-taxa. No row cap.
-		Fixed filters: Label='INV'.
+		transect then averaged per reef-year-taxa. Richness (distinct species)
+		is counted per transect, then averaged per reef-year-taxa — same
+		aggregation shape as abundance, so the two are on comparable footing.
+		No row cap. Fixed filters: Label='INV'.
 
 		Output columns: time (Year), reef (Reef), region (Region),
-		taxa (Taxa2), value (mean count per reef-year-taxa), n_transects.
+		taxa (Taxa2), value (mean count per reef-year-taxa),
+		richness (mean distinct-species count per transect, per reef-year-taxa),
+		n_transects.
 
 		Args:
 			mpa: Filter by MPA status
@@ -411,10 +415,12 @@ def register(mcp: FastMCP) -> None:
 			"Region AS region, "
 			"Taxa2 AS taxa, "
 			"AVG(transect_qty) AS value, "
+			"AVG(transect_richness) AS richness, "
 			"COUNT(*) AS n_transects "
 			"FROM ("
 			"  SELECT Year, Region, Reef, Habitat, Depth, Transect, Taxa2, "
-			"  SUM(Quantity) AS transect_qty "
+			"  SUM(Quantity) AS transect_qty, "
+			"  COUNT(DISTINCT Species) AS transect_richness "
 			f"  FROM ltem_historical_database {where} "
 			"  GROUP BY Year, Region, Reef, Habitat, Depth, Transect, Taxa2"
 			") AS transect_agg "
