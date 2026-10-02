@@ -57,9 +57,15 @@ log "  Backup complete"
 # Step 2: Pull latest code
 # ---------------------------------------------------------------------------
 log "Step 2: Pulling latest code from git..."
-git fetch origin
-git pull origin "$(git rev-parse --abbrev-ref HEAD)"
-log "  Git pull complete ($(git rev-parse --short HEAD))"
+# Deploy is pinned to a fixed branch (default: main) so it never depends on
+# whichever branch the box happens to be checked out on. Override with
+# DEPLOY_BRANCH=... if ever needed.
+DEPLOY_BRANCH="${DEPLOY_BRANCH:-main}"
+log "  Deploy branch: $DEPLOY_BRANCH"
+git fetch origin --prune
+git checkout -B "$DEPLOY_BRANCH" "origin/$DEPLOY_BRANCH"
+git reset --hard "origin/$DEPLOY_BRANCH"
+log "  Git synced to origin/$DEPLOY_BRANCH ($(git rev-parse --short HEAD))"
 
 # ---------------------------------------------------------------------------
 # Step 3: Rebuild Docker image
