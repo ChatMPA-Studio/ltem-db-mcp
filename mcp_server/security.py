@@ -20,6 +20,18 @@ DENIED_KEYWORDS = [
 DEFAULT_MAX_ROWS = 5000
 DEFAULT_TIMEOUT = 20
 
+# Ceiling for a query whose rows are an intermediate step, not the answer:
+# a tool pulling per-transect rows to reduce them to a handful of summary
+# rows in Python. DEFAULT_MAX_ROWS is a response-size guard, and applying it
+# to one of these silently drops rows the tool was going to aggregate —
+# changing the answer with no error and no warning. Measured against the
+# live table, biomass_by_region's intermediate is 6,115 rows and
+# calculate_diversity's is 194,476; capped at 5,000 the first loses 4 of 14
+# regions and the second computes diversity indices from 2.6% of the
+# surveys. Set above the table's own row count (~450K) on purpose: reaching
+# this means something is wrong, not that the data grew.
+AGGREGATION_MAX_ROWS = 500_000
+
 # ---------------------------------------------------------------------------
 # Precompiled regex patterns.
 #

@@ -9,6 +9,7 @@ from scipy import stats as sp_stats
 
 from fastmcp import FastMCP
 from mcp_server.db import execute_select
+from mcp_server.security import AGGREGATION_MAX_ROWS
 
 
 def _safe_float(v):
@@ -66,7 +67,15 @@ def register(mcp: FastMCP) -> None:
 			f"FROM ltem_historical_database {where} "
 			"GROUP BY Region, Year, Reef, Transect"
 		)
-		rows = execute_select(sql, params=tuple(params) if params else None)
+		# 6,115 rows with no year filter. These are the raw per-transect
+		# values the Kruskal-Wallis below needs in full — capped at 5,000 the
+		# test ran on 10 of 14 regions and reported H=153 instead of H=309,
+		# with nothing in the output saying so.
+		rows = execute_select(
+			sql,
+			params=tuple(params) if params else None,
+			max_rows=AGGREGATION_MAX_ROWS,
+		)
 
 		# Group by region
 		region_data: dict[str, list[float]] = defaultdict(list)
@@ -134,7 +143,13 @@ def register(mcp: FastMCP) -> None:
 			f"FROM ltem_historical_database {where} "
 			"GROUP BY Depth2, Year, Reef, Transect"
 		)
-		rows = execute_select(sql, params=tuple(params) if params else None)
+		# 8,351 rows with no region filter — the Mann-Whitney below compares
+		# the full Shallow and Deep distributions, so truncation biases both.
+		rows = execute_select(
+			sql,
+			params=tuple(params) if params else None,
+			max_rows=AGGREGATION_MAX_ROWS,
+		)
 
 		depth_data: dict[str, list[float]] = defaultdict(list)
 		for r in rows:
@@ -267,7 +282,14 @@ def register(mcp: FastMCP) -> None:
 			"HAVING total_biomass > 0"
 		)
 		try:
-			rows = execute_select(sql, params=tuple(params) if params else None)
+			# 6,115 rows unfiltered. Every row is one (biomass, SST) pair fed
+			# to the Spearman correlation, so a truncated result changes rho
+			# and p without changing anything visible in the response.
+			rows = execute_select(
+				sql,
+				params=tuple(params) if params else None,
+				max_rows=AGGREGATION_MAX_ROWS,
+			)
 		except Exception as e:
 			error_msg = str(e)
 			if "Unknown column" in error_msg or "SST" in error_msg or "Chla" in error_msg:

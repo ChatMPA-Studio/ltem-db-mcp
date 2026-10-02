@@ -6,6 +6,7 @@ from collections import defaultdict
 
 from fastmcp import FastMCP
 from mcp_server.db import execute_select
+from mcp_server.security import AGGREGATION_MAX_ROWS
 
 
 def _safe_float(v):
@@ -70,7 +71,16 @@ def register(mcp: FastMCP) -> None:
 			f"{where} "
 			"GROUP BY Year, Region, Reef, Transect, Species"
 		)
-		rows = execute_select(sql, params=tuple(params) if params else None)
+		# One row per species per transect — finer than any other query here,
+		# and 194,476 rows unfiltered. Shannon/Simpson/Pielou are computed from
+		# the species proportions within each transect, so a truncated result
+		# does not just lose transects: it silently drops species from the
+		# transects that survive, inflating every index for them.
+		rows = execute_select(
+			sql,
+			params=tuple(params) if params else None,
+			max_rows=AGGREGATION_MAX_ROWS,
+		)
 
 		# Group by survey unit (Year-Region-Reef-Transect)
 		surveys: dict[str, dict[str, float]] = defaultdict(dict)
@@ -148,7 +158,11 @@ def register(mcp: FastMCP) -> None:
 			f"GROUP BY {group_by}, Species "
 			f"ORDER BY {group_by}, total_abundance DESC"
 		)
-		rows = execute_select(sql)
+		# Size depends on group_by: 2,937 rows for Region but 5,523 for Year,
+		# which is over DEFAULT_MAX_ROWS. The top-N selection below happens in
+		# Python, so a truncated result silently drops whole groups and skews
+		# the relative abundances of the ones left.
+		rows = execute_select(sql, max_rows=AGGREGATION_MAX_ROWS)
 
 		# Group and take top N per group
 		groups: dict[str, list] = defaultdict(list)
@@ -314,7 +328,11 @@ def register(mcp: FastMCP) -> None:
 			"FROM ltem_historical_database "
 			f"GROUP BY {group_by}, Species"
 		)
-		rows = execute_select(sql)
+		# 3,613 rows at its worst (group_by='MPA') — under the default cap
+		# today, but the Bray-Curtis vectors below are built from every row,
+		# so losing any silently changes the dissimilarity matrix rather than
+		# failing. Too close to 5,000 to leave to chance as the data grows.
+		rows = execute_select(sql, max_rows=AGGREGATION_MAX_ROWS)
 
 		# Build abundance vectors per group
 		groups: dict[str, dict[str, float]] = defaultdict(dict)

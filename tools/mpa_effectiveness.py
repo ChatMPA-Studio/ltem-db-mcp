@@ -8,6 +8,7 @@ from scipy import stats as sp_stats
 
 from fastmcp import FastMCP
 from mcp_server.db import execute_select
+from mcp_server.security import AGGREGATION_MAX_ROWS
 
 
 def _safe_float(v):
@@ -57,7 +58,11 @@ def register(mcp: FastMCP) -> None:
 			"GROUP BY MPA, Year, Reef, Transect "
 			f"{having}"
 		)
-		rows = execute_select(sql)
+		# 6,122 rows. The Kruskal-Wallis and every pairwise Mann-Whitney below
+		# are built from these per-transect values, so the default cap did not
+		# just shorten the output: it reported 15 protection levels out of 21
+		# and ran the tests on the subset, p-values included.
+		rows = execute_select(sql, max_rows=AGGREGATION_MAX_ROWS)
 
 		# Group by protection level
 		groups: dict[str, list[float]] = defaultdict(list)
@@ -328,7 +333,13 @@ def register(mcp: FastMCP) -> None:
 			f"WHERE Year IN ({placeholders}) AND Biomass IS NOT NULL "
 			"GROUP BY MPA, Year, Reef, Transect"
 		)
-		rows = execute_select(sql, params=tuple(all_years))
+		# 1,248 rows for the six default years, but the caller chooses the
+		# years: ask for the full series and this is the same 6,122 rows
+		# compare_protection_levels pulls. The four BACI cells and the
+		# Mann-Whitney are computed from these, so it must not be truncated.
+		rows = execute_select(
+			sql, params=tuple(all_years), max_rows=AGGREGATION_MAX_ROWS
+		)
 
 		# Classify into BACI groups
 		groups = {
