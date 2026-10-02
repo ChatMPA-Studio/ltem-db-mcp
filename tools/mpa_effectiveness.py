@@ -26,7 +26,14 @@ def _serialize_rows(rows):
 def register(mcp: FastMCP) -> None:
 	"""Register MPA effectiveness tools with the MCP server."""
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Comparación entre niveles de protección",
+		description=(
+			"Compara una métrica de peces (biomasa, abundancia o riqueza) entre niveles "
+			"de protección, con pruebas de Kruskal-Wallis y Mann-Whitney, para ver si las "
+			"áreas protegidas difieren de las no protegidas."
+		),
+	)
 	def compare_protection_levels(metric: str = "biomass") -> str:
 		"""Compare ecological metrics across protection levels using Kruskal-Wallis + pairwise Mann-Whitney.
 
@@ -119,7 +126,14 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Recuperación de Cabo Pulmo respecto a su línea base",
+		description=(
+			"Trayectoria anual de la biomasa de peces con el factor de recuperación "
+			"respecto al periodo de referencia previo a la protección (por defecto "
+			"1998-2000)."
+		),
+	)
 	def cabo_pulmo_recovery(
 		baseline_years: list[int] | None = None,
 	) -> str:
@@ -171,7 +185,14 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Biomasa, abundancia y riqueza por nivel de protección",
+		description=(
+			"Comparación simultánea de la biomasa, la abundancia y la riqueza de peces "
+			"entre niveles de protección, con el porcentaje de ventaja del área de "
+			"protección total."
+		),
+	)
 	def compare_all_metrics() -> str:
 		"""Multi-metric comparison across protection levels (biomass, abundance, richness)
 		with Cabo Pulmo advantage percentage.
@@ -218,7 +239,12 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Estructura trófica por nivel de protección",
+		description=(
+			"Proporción de cada grupo trófico de peces en cada nivel de protección."
+		),
+	)
 	def trophic_comparison() -> str:
 		"""Trophic group proportions by protection level."""
 		sql = (
@@ -255,7 +281,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Tallas de peces por nivel de protección",
+		description=(
+			"Proporción de clases de talla de peces en cada nivel de protección, incluido "
+			"el porcentaje de peces grandes (más de 40 cm)."
+		),
+	)
 	def size_comparison() -> str:
 		"""Size class proportions by protection level, with large fish (>40cm) percentage."""
 		sql = (
@@ -305,7 +337,14 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Análisis BACI de la protección en Cabo Pulmo",
+		description=(
+			"Análisis Antes-Después-Control-Impacto: compara el cambio de la biomasa de "
+			"peces del área protegida contra sitios sin protección, entre un periodo "
+			"previo y uno posterior a la protección."
+		),
+	)
 	def baci_analysis(
 		before_years: list[int] | None = None,
 		after_years: list[int] | None = None,
@@ -404,7 +443,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Efecto spillover de Cabo Pulmo",
+		description=(
+			"Biomasa de peces según la distancia al área protegida, para evaluar el "
+			"efecto spillover (exportación de peces fuera del área)."
+		),
+	)
 	def spillover_analysis() -> str:
 		"""Analyze biomass by distance from Cabo Pulmo (spillover effect).
 

@@ -29,7 +29,14 @@ def _serialize_rows(rows: list[dict]) -> list[dict]:
 def register(mcp: FastMCP) -> None:
 	"""Register fish community tools with the MCP server."""
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Índices de diversidad de peces",
+		description=(
+			"Índices de diversidad de Shannon y Simpson y equidad de Pielou de la "
+			"comunidad de peces, calculados por transecto y resumidos. Filtrable por "
+			"región, arrecife, año y profundidad."
+		),
+	)
 	def calculate_diversity(
 		region: str | None = None,
 		reef: str | None = None,
@@ -135,7 +142,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Especies dominantes por grupo",
+		description=(
+			"Especies más abundantes (las N primeras por abundancia relativa), agrupadas "
+			"por región, AMP, año o hábitat."
+		),
+	)
 	def species_composition(
 		group_by: str = "Region",
 		top_n: int = 15,
@@ -193,7 +206,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Estructura trófica de peces",
+		description=(
+			"Proporción de la biomasa de peces que corresponde a cada grupo trófico. "
+			"Filtrable por región y año."
+		),
+	)
 	def trophic_structure(
 		region: str | None = None,
 		year: int | None = None,
@@ -252,7 +271,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Estructura de tallas de peces",
+		description=(
+			"Distribución de la abundancia de peces por clase de talla: 0-10, 10-20, "
+			"20-30, 30-40, 40-50 y más de 50 cm. Filtrable por región y año."
+		),
+	)
 	def size_structure(
 		region: str | None = None,
 		year: int | None = None,
@@ -310,7 +335,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Similitud entre comunidades de peces",
+		description=(
+			"Matriz de disimilitud de Bray-Curtis entre comunidades de peces según su "
+			"composición de especies, comparando regiones, AMPs o hábitats."
+		),
+	)
 	def community_comparison(group_by: str = "Region") -> str:
 		"""Bray-Curtis dissimilarity matrix between groups.
 

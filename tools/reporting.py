@@ -21,7 +21,13 @@ def _serialize_rows(rows):
 def register(mcp: FastMCP) -> None:
 	"""Register survey reporting tools with the MCP server."""
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Totales históricos del programa LTEM",
+		description=(
+			"Totales de toda la base histórica: observaciones, individuos contados, "
+			"especies, arrecifes, transectos y superficie muestreada."
+		),
+	)
 	def numeralia_historical() -> str:
 		"""Grand totals for the entire LTEM historical database.
 
@@ -51,7 +57,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Esfuerzo de muestreo por tipo de censo",
+		description=(
+			"Esfuerzo de muestreo separado por tipo de censo: peces (PEC) e invertebrados "
+			"(INV). Filtrable por año."
+		),
+	)
 	def numeralia_by_label(year: int | None = None) -> str:
 		"""Breakdown of survey effort by Label (PEC = fish, INV = invertebrates).
 
@@ -89,7 +101,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Esfuerzo de muestreo por región",
+		description=(
+			"Número de sitios, especies e individuos registrados por región. Filtrable "
+			"por año y tipo de censo."
+		),
+	)
 	def numeralia_by_region(
 		year: int | None = None,
 		label: str | None = None,
@@ -137,7 +155,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Arrecifes con monitoreo constante",
+		description=(
+			"Arrecifes censados en un mínimo de años distintos, útiles para análisis "
+			"temporales con series comparables. Filtrable por tipo de censo."
+		),
+	)
 	def consistent_reefs(
 		min_years: int = 5,
 		label: str | None = None,

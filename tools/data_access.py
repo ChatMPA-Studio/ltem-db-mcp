@@ -8,7 +8,12 @@ from mcp_server.db import execute_select
 def register(mcp: FastMCP) -> None:
 	"""Register data access tools with the MCP server."""
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Regiones del programa LTEM",
+		description=(
+			"Lista las regiones que cubre el programa de monitoreo LTEM."
+		),
+	)
 	def get_regions() -> str:
 		"""List all surveyed regions in the LTEM database."""
 		rows = execute_select(
@@ -20,7 +25,13 @@ def register(mcp: FastMCP) -> None:
 			"meta": {"row_count": len(regions)},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Arrecifes y sitios de monitoreo",
+		description=(
+			"Lista los arrecifes o sitios de monitoreo del programa, opcionalmente los de "
+			"una región."
+		),
+	)
 	def get_reefs(region: str | None = None) -> str:
 		"""List reefs/sites, optionally filtered by region.
 
@@ -49,7 +60,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Lista de especies observadas",
+		description=(
+			"Lista de especies (peces e invertebrados) observadas en los censos del "
+			"programa. Filtrable por región, año y nombre de especie."
+		),
+	)
 	def get_species_list(
 		region: str | None = None,
 		year: int | None = None,
@@ -92,7 +109,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Observaciones crudas de los censos",
+		description=(
+			"Registros individuales de los censos: especie, talla, cantidad, arrecife y "
+			"año. Filtrable por región, arrecife, año y especie."
+		),
+	)
 	def get_observations(
 		region: str | None = None,
 		reef: str | None = None,
@@ -159,7 +182,14 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Datos de biomasa por nivel trófico para el NRSI",
+		description=(
+			"Biomasa por transecto y nivel trófico (TrophicLevelF), el insumo para "
+			"calcular el Índice de Estado Normalizado del Arrecife. Filtrable por AMP, "
+			"región, arrecife y año."
+		),
+	)
 	def get_nrsi_data(
 		mpa: str | None = None,
 		region: str | None = None,
@@ -238,7 +268,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Esfuerzo de muestreo",
+		description=(
+			"Resumen del esfuerzo de monitoreo: número de transectos, arrecifes y "
+			"especies, agrupado por año, región o AMP."
+		),
+	)
 	def survey_effort_summary(group_by: str = "Year") -> str:
 		"""Summarize survey effort (transect counts, reef counts, species counts).
 
@@ -278,7 +314,13 @@ def register(mcp: FastMCP) -> None:
 		})
 
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Datos de biomasa de peces por arrecife y año",
+		description=(
+			"Biomasa media de peces (g/m²) por arrecife y año, el insumo del análisis de "
+			"tendencia de biomasa. Filtrable por AMP, región, arrecife y año."
+		),
+	)
 	def get_biomass_data(
 		mpa: str | None = None,
 		region: str | None = None,
@@ -360,7 +402,14 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Datos de abundancia de invertebrados por arrecife y año",
+		description=(
+			"Abundancia media de invertebrados por arrecife, año y grupo taxonómico, el "
+			"insumo del análisis de tendencia de invertebrados. Filtrable por AMP, "
+			"región, arrecife y año."
+		),
+	)
 	def get_invertebrate_data(
 		mpa: str | None = None,
 		region: str | None = None,

@@ -62,7 +62,14 @@ def register(mcp: FastMCP) -> None:
 	# NRSI tools
 	# -----------------------------------------------------------------------
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Índice NRSI por arrecife",
+		description=(
+			"Índice de Estado Normalizado del Arrecife (NRSI) de cada arrecife, de -1 "
+			"(degradado) a +1 (sano), calculado con la biomasa relativa de los niveles "
+			"tróficos altos, bajos y consumidores. Filtrable por región y año."
+		),
+	)
 	def nrsi_by_reef(
 		region: str | None = None,
 		year: int | None = None,
@@ -151,7 +158,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Índice NRSI con intervalos de confianza",
+		description=(
+			"NRSI de cada arrecife con intervalos de confianza por bootstrap, para medir "
+			"la incertidumbre del índice. Filtrable por región y año."
+		),
+	)
 	def nrsi_bootstrapped(
 		region: str | None = None,
 		year: int | None = None,
@@ -255,7 +268,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Índice NRSI por región",
+		description=(
+			"NRSI medio por región con prueba de Kruskal-Wallis para comparar regiones. "
+			"Filtrable por año."
+		),
+	)
 	def nrsi_regional_summary(year: int | None = None) -> str:
 		"""Regional NRSI comparison with Kruskal-Wallis test.
 
@@ -339,7 +358,13 @@ def register(mcp: FastMCP) -> None:
 	# Functional group tools
 	# -----------------------------------------------------------------------
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Biomasa de peces por grupo funcional",
+		description=(
+			"Biomasa de peces por grupo funcional ecológico, con etiquetas en español. "
+			"Filtrable por región y año."
+		),
+	)
 	def functional_group_biomass(
 		region: str | None = None,
 		year: int | None = None,
@@ -408,7 +433,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Evolución anual de la biomasa por grupo funcional",
+		description=(
+			"Trayectoria anual de la biomasa de cada grupo funcional de peces. Filtrable "
+			"por región."
+		),
+	)
 	def functional_group_temporal(region: str | None = None) -> str:
 		"""Annual biomass trajectory per functional group.
 
@@ -466,7 +497,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Composición de grupos funcionales por región",
+		description=(
+			"Proporción de cada grupo funcional de peces en cada región, para comparar "
+			"regiones entre sí. Filtrable por año."
+		),
+	)
 	def functional_group_by_region(year: int | None = None) -> str:
 		"""Proportional functional group composition per region.
 

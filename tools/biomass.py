@@ -39,7 +39,14 @@ def _biomass_warnings(rows, biomass_col="total_biomass"):
 def register(mcp: FastMCP) -> None:
 	"""Register biomass analysis tools with the MCP server."""
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Biomasa de peces por región",
+		description=(
+			"Biomasa media de peces de cada región del programa LTEM, con prueba de "
+			"Kruskal-Wallis para saber si las regiones difieren entre sí. Filtrable por "
+			"año y por profundidad."
+		),
+	)
 	def biomass_by_region(
 		year: int | None = None,
 		depth: str | None = None,
@@ -123,7 +130,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Biomasa de peces por profundidad",
+		description=(
+			"Compara la biomasa de peces entre sitios someros y sitios profundos. "
+			"Filtrable por región."
+		),
+	)
 	def biomass_by_depth(region: str | None = None) -> str:
 		"""Compare biomass between shallow and deep depth categories.
 
@@ -193,7 +206,14 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Biomasa de peces por grupo trófico",
+		description=(
+			"Biomasa de peces desglosada por grupo trófico (herbívoros, carnívoros, "
+			"piscívoros, planctívoros y otros), en valores absolutos. Filtrable por "
+			"región y año."
+		),
+	)
 	def trophic_biomass(
 		region: str | None = None,
 		year: int | None = None,
@@ -254,7 +274,14 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Correlación de la biomasa con variables ambientales",
+		description=(
+			"Correlaciones de Spearman entre la biomasa de peces y variables ambientales "
+			"como la temperatura superficial del mar y la clorofila-a. Filtrable por "
+			"región."
+		),
+	)
 	def environmental_correlations(region: str | None = None) -> str:
 		"""Spearman correlations between biomass and environmental variables (SST, Chl-a).
 
@@ -339,7 +366,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Relación entre temperatura del mar y biomasa de peces",
+		description=(
+			"Regresión lineal y cuadrática de la biomasa de peces en función de la "
+			"temperatura superficial del mar. Filtrable por región."
+		),
+	)
 	def sst_biomass_relationship(region: str | None = None) -> str:
 		"""Linear and quadratic regression of biomass vs SST.
 
@@ -424,7 +457,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Relación entre clorofila y productividad de peces",
+		description=(
+			"Regresión log-log entre la concentración de clorofila-a y la productividad "
+			"(biomasa) de peces. Filtrable por región."
+		),
+	)
 	def chl_productivity_relationship(region: str | None = None) -> str:
 		"""Log-log regression of Chl-a vs productivity (biomass).
 
@@ -485,7 +524,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Biomasa de peces por gremio de comportamiento",
+		description=(
+			"Biomasa de peces (g/m²) por gremio o grupo de comportamiento, por año. "
+			"Filtrable por región, AMP, arrecife y año."
+		),
+	)
 	def behavioral_group_biomass(
 		region: str | None = None,
 		mpa: str | None = None,
@@ -591,7 +636,14 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Biomasa de peces por familia",
+		description=(
+			"Biomasa de peces (g/m²) por familia taxonómica (por ejemplo Serranidae o "
+			"Lutjanidae), por año. Filtrable por región, AMP, arrecife, año y lista de "
+			"familias."
+		),
+	)
 	def family_biomass(
 		region: str | None = None,
 		mpa: str | None = None,
@@ -673,7 +725,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Biomasa de peces por especie",
+		description=(
+			"Biomasa de peces (g/m²) de cada especie, en una tabla ordenable por biomasa. "
+			"Filtrable por región, AMP, arrecife y año."
+		),
+	)
 	def species_biomass(
 		region: str | None = None,
 		mpa: str | None = None,
@@ -751,7 +809,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Gradiente latitudinal de biomasa de peces",
+		description=(
+			"Tendencias de la biomasa de peces a lo largo del gradiente de latitud, de "
+			"norte a sur, con todas las regiones monitoreadas."
+		),
+	)
 	def latitudinal_gradient() -> str:
 		"""Biomass trends along a latitudinal gradient.
 
