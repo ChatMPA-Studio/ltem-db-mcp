@@ -118,6 +118,7 @@ AUTH_ENABLED: bool = os.getenv("AUTH_ENABLED", "false").strip().lower() in ("1",
 AUTH_DYNAMODB_TABLE: str = os.getenv("AUTH_DYNAMODB_TABLE", "chatmpa-mcp-auth")
 AUTH_AWS_REGION: str = os.getenv("AUTH_AWS_REGION", "us-west-2")
 AUTH_CACHE_TTL_SECONDS: int = int(os.getenv("AUTH_CACHE_TTL_SECONDS", "60"))
+AUTH_CACHE_MAX_ENTRIES: int = int(os.getenv("AUTH_CACHE_MAX_ENTRIES", "1000"))
 AUTH_REQUIRED_SCOPE: str = "ltem"
 
 

@@ -12,6 +12,8 @@ from pathlib import Path
 
 from fastmcp import FastMCP
 
+from mcp_server.auth import build_auth
+from mcp_server.config import AUTH_ENABLED
 from mcp_server.db import test_connection
 from mcp_server.prompts import discover_prompts
 from mcp_server.schema import build_schema_snapshot, describe_table, discover_tables
@@ -22,7 +24,10 @@ logger = logging.getLogger(__name__)
 # Create the MCP server instance
 # ---------------------------------------------------------------------------
 
-mcp = FastMCP("LTEM Database")
+# With AUTH_ENABLED, FastMCP's auth layer requires a valid bearer key on
+# every HTTP request — there is no unauthenticated path left, internal or
+# otherwise (see mcp_server/auth.py).
+mcp = FastMCP("LTEM Database", auth=build_auth() if AUTH_ENABLED else None)
 
 # ---------------------------------------------------------------------------
 

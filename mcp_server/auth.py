@@ -1,28 +1,35 @@
-"""Per-investigator API key auth for external (ALB) traffic.
+"""Per-investigator API key auth, enforced by FastMCP's own auth layer.
 
-Not wired through FastMCP's own `auth=`/`TokenVerifier` hook: once that's
-configured, FastMCP's HTTP transport wraps the app in a middleware that
-rejects *any* request without an `Authorization` header, including the
-orchestrator's internal calls (which never carry a key — they're trusted at
-the network/security-group level, per docs/infrastructure.md and the ALB
-architecture doc). So this is a plain Starlette middleware, applied only
-when AUTH_ENABLED, that lets header-less requests through untouched and
-only validates when a header is actually present.
+Wired through FastMCP's `auth=` hook as a `TokenVerifier` subclass, so
+*every* HTTP request must carry `Authorization: Bearer <key>` — including
+the orchestrator's internal calls, which previously passed unauthenticated
+(the old Starlette middleware let header-less requests through and relied on
+the security group alone). FastMCP's transport middleware now rejects a
+missing or malformed header before this module is reached.
 
-Keys are opaque, not JWTs: an admin panel elsewhere generates a random key,
-shows it once, and stores only its SHA-256 hash in DynamoDB alongside the
-investigator id and scopes. This module never sees or stores a raw key —
-only the hash, and only in memory, only for AUTH_CACHE_TTL_SECONDS.
+Deliberately NOT `JWTVerifier`: these keys are opaque, not JWTs. An admin
+panel elsewhere generates a random key, shows it once, and stores only its
+SHA-256 hash in DynamoDB alongside the investigator id and scopes. This
+module never sees or stores a raw key — only the hash, and only in memory,
+only for AUTH_CACHE_TTL_SECONDS. Subclassing `TokenVerifier` keeps that
+lookup exactly as it was; only the surrounding plumbing changed.
+
+Scope enforcement is declarative: `required_scopes` on the base class makes
+FastMCP reject tokens lacking AUTH_REQUIRED_SCOPE. Rejections surface to the
+client as a standard OAuth 401 (`WWW-Authenticate: Bearer ...`), so the
+specific reason (unknown / revoked / missing scope) stays in the logs rather
+than the response body.
 """
 
+import asyncio
 import hashlib
 import logging
+import threading
 import time
+from collections import OrderedDict
 from typing import Any
 
-from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
-from starlette.requests import Request
-from starlette.responses import JSONResponse, Response
+from fastmcp.server.auth import AccessToken, TokenVerifier
 
 from mcp_server import config
 
@@ -31,62 +38,87 @@ logger = logging.getLogger(__name__)
 # hash -> (record or None if not found, expires_at monotonic timestamp).
 # Caching misses too, not just hits: a client retrying an invalid/typo'd key
 # shouldn't get a DynamoDB GetItem on every single request.
-_cache: dict[str, tuple[dict[str, Any] | None, float]] = {}
+# Ordered by write time and capped at AUTH_CACHE_MAX_ENTRIES: once full, the
+# oldest write is evicted. Every entry gets the same TTL, so the oldest write
+# is also the one closest to expiring anyway. Without the cap, a stream of
+# random keys would leave one miss entry behind each, forever.
+_cache: OrderedDict[str, tuple[dict[str, Any] | None, float]] = OrderedDict()
+
+# One boto3 Table per worker thread. _fetch runs in asyncio's thread pool, and
+# boto3 resources (and its default session) aren't thread-safe to share, so
+# each thread builds its own on first use and reuses it after that.
+_thread_local = threading.local()
 
 
 def get_dynamodb_table():
 	"""Isolated on purpose: tests patch this name, not boto3 itself, to
 	swap in a fake table without touching AWS or real credentials."""
-	import boto3
+	table = getattr(_thread_local, "table", None)
+	if table is None:
+		import boto3
 
-	return boto3.resource("dynamodb", region_name=config.AUTH_AWS_REGION).Table(
-		config.AUTH_DYNAMODB_TABLE
-	)
+		table = (
+			boto3.session.Session()
+			.resource("dynamodb", region_name=config.AUTH_AWS_REGION)
+			.Table(config.AUTH_DYNAMODB_TABLE)
+		)
+		_thread_local.table = table
+	return table
 
 
-def _lookup(key_hash: str) -> dict[str, Any] | None:
+def _fetch(key_hash: str) -> dict[str, Any] | None:
+	"""Blocking boto3 call — only ever run via asyncio.to_thread."""
+	response = get_dynamodb_table().get_item(Key={"key_hash": key_hash})
+	return response.get("Item")
+
+
+async def _lookup(key_hash: str) -> dict[str, Any] | None:
+	# Only the DynamoDB round trip leaves the event loop thread; every read
+	# and write of _cache stays on it, so the cache needs no lock.
 	cached = _cache.get(key_hash)
 	if cached is not None and cached[1] > time.monotonic():
 		return cached[0]
 
-	response = get_dynamodb_table().get_item(Key={"key_hash": key_hash})
-	record = response.get("Item")
+	record = await asyncio.to_thread(_fetch, key_hash)
 	_cache[key_hash] = (record, time.monotonic() + config.AUTH_CACHE_TTL_SECONDS)
+	# Assigning to an existing key keeps its old position; a refresh is a new
+	# write, so it goes to the back of the eviction line.
+	_cache.move_to_end(key_hash)
+	if len(_cache) > config.AUTH_CACHE_MAX_ENTRIES:
+		_cache.popitem(last=False)
 	return record
 
 
-def _unauthorized(reason: str) -> JSONResponse:
+def _reject(reason: str) -> None:
+	"""FastMCP turns a None return into a 401; the reason is logged here
+	because the OAuth error response doesn't carry one."""
 	logger.warning("auth_rejected", extra={"reason": reason})
-	return JSONResponse({"error": "unauthorized", "reason": reason}, status_code=401)
+	return None
 
 
-class ApiKeyMiddleware(BaseHTTPMiddleware):
-	"""Validates `Authorization: Bearer <key>` when present; lets requests
-	with no Authorization header through untouched (internal/orchestrator
-	traffic — the security group is what actually restricts who can reach
-	this far, not this middleware)."""
+class ApiKeyVerifier(TokenVerifier):
+	"""Validates an opaque bearer key against its SHA-256 hash in DynamoDB."""
 
-	async def dispatch(
-		self, request: Request, call_next: RequestResponseEndpoint
-	) -> Response:
-		header = request.headers.get("authorization")
-		if header is None:
-			return await call_next(request)
-
-		scheme, _, token = header.partition(" ")
-		if scheme.lower() != "bearer" or not token:
-			return _unauthorized("malformed_authorization_header")
-
+	async def verify_token(self, token: str) -> AccessToken | None:
 		key_hash = hashlib.sha256(token.encode()).hexdigest()
-		record = _lookup(key_hash)
+		record = await _lookup(key_hash)
 
 		if record is None:
-			return _unauthorized("key_not_found")
+			return _reject("key_not_found")
 		if record.get("revoked_at"):
-			return _unauthorized("key_revoked")
-		if config.AUTH_REQUIRED_SCOPE not in record.get("scopes", []):
-			return _unauthorized("missing_scope")
+			return _reject("key_revoked")
 
-		request.state.investigator_id = record.get("investigator_id")
-		request.state.scopes = record.get("scopes")
-		return await call_next(request)
+		scopes = list(record.get("scopes", []))
+		if config.AUTH_REQUIRED_SCOPE not in scopes:
+			return _reject("missing_scope")
+
+		return AccessToken(
+			token=token,
+			client_id=str(record.get("investigator_id", "")),
+			scopes=scopes,
+		)
+
+
+def build_auth() -> ApiKeyVerifier:
+	"""Constructed only when AUTH_ENABLED — see mcp_server/server.py."""
+	return ApiKeyVerifier(required_scopes=[config.AUTH_REQUIRED_SCOPE])

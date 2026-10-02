@@ -1,37 +1,33 @@
-"""Tests for mcp_server/auth.py — the per-investigator API key middleware.
+"""Tests for mcp_server/auth.py — the per-investigator API key verifier.
 
-Runs against a minimal Starlette app instead of the full MCP server, and
-mocks mcp_server.auth.get_dynamodb_table (patched at the call site, same
+Exercises ApiKeyVerifier.verify_token directly rather than through an HTTP
+app: rejecting a missing/malformed Authorization header is FastMCP's job now
+(its transport middleware runs before verify_token is ever called), so the
+only thing left to test here is the DynamoDB lookup and its caching.
+
+Mocks mcp_server.auth.get_dynamodb_table (patched at the call site, same
 convention tests/test_smoke.py uses for execute_select) — no database
 connection or AWS credentials needed.
 """
 
+import asyncio
 import hashlib
+import time
 from unittest.mock import MagicMock, patch
 
 import pytest
-from starlette.applications import Starlette
-from starlette.middleware import Middleware
-from starlette.responses import PlainTextResponse
-from starlette.routing import Route
-from starlette.testclient import TestClient
 
 from mcp_server import auth as auth_module
-from mcp_server.auth import ApiKeyMiddleware
+from mcp_server import config
+from mcp_server.auth import ApiKeyVerifier, build_auth
 
 VALID_KEY = "test-key-abc123"
 VALID_HASH = hashlib.sha256(VALID_KEY.encode()).hexdigest()
 
 
-def _echo(request):
-	investigator_id = getattr(request.state, "investigator_id", "anonymous")
-	return PlainTextResponse(investigator_id)
-
-
 @pytest.fixture
-def client():
-	app = Starlette(routes=[Route("/", _echo)], middleware=[Middleware(ApiKeyMiddleware)])
-	return TestClient(app)
+def verifier() -> ApiKeyVerifier:
+	return build_auth()
 
 
 @pytest.fixture(autouse=True)
@@ -50,72 +46,124 @@ def _mock_table(item: dict | None = None) -> MagicMock:
 	return table
 
 
-class TestNoHeader:
-	"""Internal orchestrator calls never carry a key — the security group,
-	not this middleware, is what restricts who can reach the MCP task."""
-
-	def test_request_without_authorization_header_passes_through(self, client):
-		with patch("mcp_server.auth.get_dynamodb_table") as mock_get_table:
-			response = client.get("/")
-		assert response.status_code == 200
-		assert response.text == "anonymous"
-		mock_get_table.assert_not_called()
-
-
 class TestValidKey:
-	def test_valid_key_with_ltem_scope_passes(self, client):
+	async def test_valid_key_with_ltem_scope_is_accepted(self, verifier):
 		record = {
 			"investigator_id": "researcher-42",
 			"scopes": ["ltem", "conapesca"],
 			"revoked_at": None,
 		}
 		with patch("mcp_server.auth.get_dynamodb_table", return_value=_mock_table(record)):
-			response = client.get("/", headers={"Authorization": f"Bearer {VALID_KEY}"})
-		assert response.status_code == 200
-		assert response.text == "researcher-42"
+			token = await verifier.verify_token(VALID_KEY)
+		assert token is not None
+		assert token.client_id == "researcher-42"
+		assert token.scopes == ["ltem", "conapesca"]
 
-	def test_second_call_within_ttl_does_not_hit_dynamodb_again(self, client):
+	async def test_lookup_is_by_hash_never_the_raw_key(self, verifier):
 		record = {"investigator_id": "researcher-42", "scopes": ["ltem"], "revoked_at": None}
 		table = _mock_table(record)
 		with patch("mcp_server.auth.get_dynamodb_table", return_value=table):
-			client.get("/", headers={"Authorization": f"Bearer {VALID_KEY}"})
-			client.get("/", headers={"Authorization": f"Bearer {VALID_KEY}"})
+			await verifier.verify_token(VALID_KEY)
+		table.get_item.assert_called_once_with(Key={"key_hash": VALID_HASH})
+
+	async def test_second_call_within_ttl_does_not_hit_dynamodb_again(self, verifier):
+		record = {"investigator_id": "researcher-42", "scopes": ["ltem"], "revoked_at": None}
+		table = _mock_table(record)
+		with patch("mcp_server.auth.get_dynamodb_table", return_value=table):
+			await verifier.verify_token(VALID_KEY)
+			await verifier.verify_token(VALID_KEY)
 		assert table.get_item.call_count == 1
 
 
-class TestRejected:
-	def test_malformed_header_is_rejected(self, client):
-		with patch("mcp_server.auth.get_dynamodb_table") as mock_get_table:
-			response = client.get("/", headers={"Authorization": "NotBearer xyz"})
-		assert response.status_code == 401
-		mock_get_table.assert_not_called()
+class TestDoesNotBlockEventLoop:
+	async def test_slow_dynamodb_miss_does_not_freeze_other_requests(self, verifier):
+		"""boto3 is synchronous; if get_item ran on the event loop thread, a
+		slow DynamoDB would stall every concurrent request, not just this one."""
+		table = MagicMock()
+		table.get_item.side_effect = lambda **_: time.sleep(0.5) or {}
 
-	def test_unknown_key_is_rejected(self, client):
+		async def other_request() -> float:
+			start = time.monotonic()
+			await asyncio.sleep(0.01)
+			return time.monotonic() - start
+
+		with patch("mcp_server.auth.get_dynamodb_table", return_value=table):
+			_, elapsed = await asyncio.gather(verifier.verify_token("slow-key"), other_request())
+		assert elapsed < 0.2
+
+
+class TestCacheSizeCap:
+	"""Once AUTH_CACHE_MAX_ENTRIES is reached, each new lookup evicts the
+	oldest write, so a flood of random keys can't grow the cache forever."""
+
+	async def test_cache_never_exceeds_max_entries(self, verifier, monkeypatch):
+		monkeypatch.setattr(config, "AUTH_CACHE_MAX_ENTRIES", 2)
 		with patch("mcp_server.auth.get_dynamodb_table", return_value=_mock_table(None)):
-			response = client.get("/", headers={"Authorization": "Bearer wrong-key"})
-		assert response.status_code == 401
+			for i in range(5):
+				await verifier.verify_token(f"random-key-{i}")
+		assert len(auth_module._cache) == 2
 
-	def test_second_lookup_of_unknown_key_does_not_hit_dynamodb_again(self, client):
+	async def test_oldest_entry_is_evicted_first(self, verifier, monkeypatch):
+		monkeypatch.setattr(config, "AUTH_CACHE_MAX_ENTRIES", 2)
+		record = {"investigator_id": "researcher-42", "scopes": ["ltem"], "revoked_at": None}
+		table = _mock_table(record)
+		with patch("mcp_server.auth.get_dynamodb_table", return_value=table):
+			await verifier.verify_token(VALID_KEY)
+			await verifier.verify_token("second-key")
+			await verifier.verify_token("third-key")  # evicts VALID_KEY
+			assert VALID_HASH not in auth_module._cache
+			await verifier.verify_token(VALID_KEY)
+		assert table.get_item.call_count == 4
+
+	async def test_refreshed_entry_moves_to_the_back(self, verifier, monkeypatch):
+		"""An expired entry that gets re-fetched is a new write, so it must
+		not be the next one evicted."""
+		monkeypatch.setattr(config, "AUTH_CACHE_MAX_ENTRIES", 2)
+		with patch("mcp_server.auth.get_dynamodb_table", return_value=_mock_table(None)):
+			await verifier.verify_token(VALID_KEY)
+			await verifier.verify_token("second-key")
+			record, _ = auth_module._cache[VALID_HASH]
+			auth_module._cache[VALID_HASH] = (record, 0.0)  # force expiry
+			await verifier.verify_token(VALID_KEY)  # re-fetch → back of the line
+			await verifier.verify_token("third-key")  # evicts second-key
+		assert VALID_HASH in auth_module._cache
+		assert hashlib.sha256(b"second-key").hexdigest() not in auth_module._cache
+
+
+class TestRejected:
+	"""verify_token returns None for anything it won't accept; FastMCP
+	turns that into a 401."""
+
+	async def test_unknown_key_is_rejected(self, verifier):
+		with patch("mcp_server.auth.get_dynamodb_table", return_value=_mock_table(None)):
+			assert await verifier.verify_token("wrong-key") is None
+
+	async def test_second_lookup_of_unknown_key_does_not_hit_dynamodb_again(self, verifier):
 		"""Misses are cached too — a client retrying a typo'd key shouldn't
 		get a GetItem on every single request."""
 		table = _mock_table(None)
 		with patch("mcp_server.auth.get_dynamodb_table", return_value=table):
-			client.get("/", headers={"Authorization": "Bearer wrong-key"})
-			client.get("/", headers={"Authorization": "Bearer wrong-key"})
+			await verifier.verify_token("wrong-key")
+			await verifier.verify_token("wrong-key")
 		assert table.get_item.call_count == 1
 
-	def test_revoked_key_is_rejected(self, client):
+	async def test_revoked_key_is_rejected(self, verifier):
 		record = {
 			"investigator_id": "researcher-42",
 			"scopes": ["ltem"],
 			"revoked_at": "2026-01-01T00:00:00Z",
 		}
 		with patch("mcp_server.auth.get_dynamodb_table", return_value=_mock_table(record)):
-			response = client.get("/", headers={"Authorization": f"Bearer {VALID_KEY}"})
-		assert response.status_code == 401
+			assert await verifier.verify_token(VALID_KEY) is None
 
-	def test_key_without_ltem_scope_is_rejected(self, client):
+	async def test_key_without_ltem_scope_is_rejected(self, verifier):
 		record = {"investigator_id": "researcher-42", "scopes": ["conapesca"], "revoked_at": None}
 		with patch("mcp_server.auth.get_dynamodb_table", return_value=_mock_table(record)):
-			response = client.get("/", headers={"Authorization": f"Bearer {VALID_KEY}"})
-		assert response.status_code == 401
+			assert await verifier.verify_token(VALID_KEY) is None
+
+
+class TestWiring:
+	def test_required_scope_is_declared_to_fastmcp(self, verifier):
+		"""FastMCP re-checks scopes itself; the verifier has to advertise
+		the requirement for that second gate to do anything."""
+		assert config.AUTH_REQUIRED_SCOPE in verifier.required_scopes
