@@ -18,7 +18,7 @@ This skill guides the calculation and interpretation of the NRSI using the LTEM 
 
 **Source:** `ltem_historical_database` table via MCP server
 **Key column:** `TrophicLevelF` — categorical trophic level ranges (e.g., '2-2.5', '4-4.5')
-**Biomass column:** `Biomass` in g/m2
+**Biomass column:** `Biomass` in ton/ha
 
 ### NRSI Formula
 

@@ -291,7 +291,7 @@ def register(mcp: FastMCP) -> None:
 		to fit the GAM trend model. Biomass is summed per transect then averaged
 		per reef-year. No row cap. Fixed filters: Label='PEC', Biomass IS NOT NULL.
 
-		Output columns: time (Year), reef (Reef), value (mean g/m² per reef-year),
+		Output columns: time (Year), reef (Reef), value (mean ton/ha per reef-year),
 		region (Region), n_transects (number of transects contributing).
 
 		Args:
@@ -356,7 +356,7 @@ def register(mcp: FastMCP) -> None:
 				},
 				"row_count": len(rows),
 				"columns": ["time", "reef", "region", "value", "n_transects"],
-				"description": "Mean fish biomass (g/m²) per reef-year for GAM trend fitting",
+				"description": "Mean fish biomass (ton/ha) per reef-year for GAM trend fitting",
 			},
 		})
 

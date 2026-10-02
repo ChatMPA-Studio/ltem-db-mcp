@@ -24,7 +24,7 @@ The main observations table. Each row represents one species observation on one 
 | Species        | VARCHAR(200)  | Scientific species name                          |
 | Quantity       | INT           | Number of individuals observed                   |
 | Size           | DECIMAL(10,2) | Estimated total length in centimeters            |
-| Biomass        | DECIMAL(15,6) | Calculated biomass in grams per square meter     |
+| Biomass        | DECIMAL(15,6) | Calculated biomass in tons per hectare (ton/ha)     |
 | MPA            | VARCHAR(100)  | Marine Protected Area classification             |
 | TrophicGroup   | VARCHAR(50)   | Trophic group (Herbivoro, Carnivoro, etc.)       |
 | Latitude       | DECIMAL(10,6) | Site latitude (decimal degrees)                  |
@@ -83,7 +83,7 @@ Reference table of all surveyed reef sites.
 
 ## Units
 
-- **Biomass**: grams per square meter (g/m²)
+- **Biomass**: tons per hectare (ton/ha)
 - **Size**: total length in centimeters (cm)
 - **Quantity**: count of individuals per transect observation
 - **Coordinates**: decimal degrees (WGS84)

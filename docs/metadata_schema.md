@@ -200,9 +200,9 @@ MCP server metadata is split into **4 layers** for scalability and clarity:
           {
             "name": "Biomass",
             "type": "DECIMAL(10,2)",
-            "description": "Biomass in g/m²",
+            "description": "Biomass in ton/ha",
             "required": false,
-            "units": "g/m²",
+            "units": "ton/ha",
             "constraints": {
               "min": 0,
               "max": 10000
