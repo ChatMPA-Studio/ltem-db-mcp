@@ -118,6 +118,15 @@ PROPOSED_INDEXES: dict[str, tuple[str, ...]] = {
     # transect-identity aggregation every biomass/abundance/richness tool
     # does before averaging further.
     "idx_ltem_year_region_reef_transect": ("Year", "Region", "Reef", "Transect"),
+    # Same four columns, Region first. Not redundant with the index above:
+    # none of the other indexes lead with Region, so `WHERE Region = %s`
+    # without a Label or Year alongside it (biomass.py's regional trend,
+    # data_access.py's get_reefs) had no index it could seek on. Measured
+    # on a local copy: without this, the optimizer scans the whole
+    # Year-leading index to avoid a filesort and ends up 2.3x SLOWER than
+    # the plain table scan it did before any of these indexes existed.
+    # With it, the same query is 2.5x faster than baseline instead.
+    "idx_ltem_region_year_reef_transect": ("Region", "Year", "Reef", "Transect"),
     # WHERE MPA = %s [AND Year = %s] — protection-level comparisons.
     "idx_ltem_mpa_year": ("MPA", "Year"),
     # WHERE Reef = %s used on its own (get_reefs, get_observations) without
@@ -201,12 +210,14 @@ def has_primary_key(conn, table: str) -> bool:
 
 
 def apply_primary_key(conn, table: str) -> None:
-    """Adding a PRIMARY KEY rebuilds the table's clustered index, but MySQL
-    8.0 supports this as online DDL (concurrent reads and writes both
-    proceed) — unlike Phase 1's type changes."""
+    """Adding a PRIMARY KEY rebuilds the table's clustered index. This runs
+    INPLACE (no full table copy), but not lock-free: MySQL assigns the
+    auto-increment values itself and rejects LOCK=NONE for that outright
+    ("Adding an auto-increment column requires a lock", error 1846), so
+    LOCK=SHARED it is — reads proceed, writes block for the duration."""
     sql = (
         f"ALTER TABLE `{table}` ADD COLUMN id BIGINT AUTO_INCREMENT PRIMARY KEY FIRST, "
-        "ALGORITHM=INPLACE, LOCK=NONE"
+        "ALGORITHM=INPLACE, LOCK=SHARED"
     )
     print(f"\n-> {sql}")
     started = time.perf_counter()
