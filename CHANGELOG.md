@@ -4,6 +4,11 @@ All notable changes to the LTEM Database MCP Server will be documented in this f
 
 ## [Unreleased]
 
+### Added
+- `get_invertebrate_data`: new `richness` column (mean number of distinct species per transect,
+  averaged per reef-year-taxa), aggregated the same way as `value` (abundance) so the two are
+  comparable. Feeds the optional richness KPI of `ltem-invertebrate-abundance`.
+
 ### Fixed
 - Biomass units documented as **ton/ha** (were documented as g/m²). The `Biomass` column of
   `ltem_historical_database` is loaded as `Quantity × a × Size^b / (Area × 100)` (ltem_report
