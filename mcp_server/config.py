@@ -9,7 +9,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 from dotenv import load_dotenv
 
@@ -39,13 +39,14 @@ def _parse_database_url(url: str) -> dict:
     """Parse a DATABASE_URL into individual components.
 
     Supports: mysql://user:pass@host:port/dbname
+    User and password are percent-decoded (urlparse leaves them encoded).
     """
     parsed = urlparse(url)
     return {
         "host": parsed.hostname or "localhost",
         "port": parsed.port or 3306,
-        "user": parsed.username or "root",
-        "password": parsed.password or "",
+        "user": unquote(parsed.username or "root"),
+        "password": unquote(parsed.password or ""),
         "name": parsed.path.lstrip("/") or "ecological_monitoring",
     }
 
