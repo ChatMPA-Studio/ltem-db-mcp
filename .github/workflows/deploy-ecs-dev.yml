@@ -26,6 +26,10 @@ env:
   ECR_REPOSITORY: dev-app-repo
   ECS_CLUSTER: dev-ecs-cluster
   SERVICE_NAME: mcp-ltem
+  # Notificaciones a Telegram, mismo endpoint/canal que chat-mpa. La API key
+  # va en el secret TELEGRAM_NOTIFY_API_KEY en vez de en claro.
+  TELEGRAM_NOTIFY_URL: https://o5qecqyi28.execute-api.us-west-2.amazonaws.com/dev
+  TELEGRAM_CHANNEL_ID: "-4820131445"
 
 jobs:
   build:
@@ -45,6 +49,15 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
+      - name: notify-telegram
+        id: notify-start
+        env:
+          API_KEY: ${{ secrets.TELEGRAM_NOTIFY_API_KEY }}
+        run: |
+          msg="Deployment of <b> ${{ github.repository }} on $GITHUB_REF_NAME </b> 🚀 Start"
+          request="{\"parse_mode\" :\"HTML\" ,\"channelID\": \"$TELEGRAM_CHANNEL_ID\", \"message\": \"$msg\" }"
+          curl -X POST -H "Content-Type: application/json" -H "x-api-key:$API_KEY" -d "$request" "$TELEGRAM_NOTIFY_URL"
+
       - name: Build, tag, and push image to Amazon ECR
         id: build-image
         env:
@@ -55,6 +68,15 @@ jobs:
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: notify-telegram
+        id: notify-build
+        env:
+          API_KEY: ${{ secrets.TELEGRAM_NOTIFY_API_KEY }}
+        run: |
+          msg="Build stage for <b> ${{ github.repository }} on $GITHUB_REF_NAME </b> ✅ SUCCESS"
+          request="{\"parse_mode\" :\"HTML\" ,\"channelID\": \"$TELEGRAM_CHANNEL_ID\", \"message\": \"$msg\" }"
+          curl -X POST -H "Content-Type: application/json" -H "x-api-key:$API_KEY" -d "$request" "$TELEGRAM_NOTIFY_URL"
 
       ###
       ### Register new task definition in cluster
@@ -82,3 +104,26 @@ jobs:
           service: ${{ env.SERVICE_NAME }}
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
+
+      - name: notify-telegram
+        id: notify-success
+        env:
+          API_KEY: ${{ secrets.TELEGRAM_NOTIFY_API_KEY }}
+        run: |
+          msg="Deployment of <b> ${{ github.repository }} on $GITHUB_REF_NAME </b> ✅ SUCCESS"
+          request="{\"parse_mode\" :\"HTML\" ,\"channelID\": \"$TELEGRAM_CHANNEL_ID\", \"message\": \"$msg\" }"
+          curl -X POST -H "Content-Type: application/json" -H "x-api-key:$API_KEY" -d "$request" "$TELEGRAM_NOTIFY_URL"
+
+  debug:
+    needs: build
+    runs-on: ubuntu-latest
+    if: failure()
+    steps:
+      - name: notify-telegram
+        id: notify-failed
+        env:
+          API_KEY: ${{ secrets.TELEGRAM_NOTIFY_API_KEY }}
+        run: |
+          msg="Deployment of <b> ${{ github.repository }} on $GITHUB_REF_NAME </b> 🆘 FAILED"
+          request="{\"parse_mode\" :\"HTML\" ,\"channelID\": \"$TELEGRAM_CHANNEL_ID\", \"message\": \"$msg\" }"
+          curl -X POST -H "Content-Type: application/json" -H "x-api-key:$API_KEY" -d "$request" "$TELEGRAM_NOTIFY_URL"
