@@ -8,14 +8,14 @@
 # definition activo con esa family y un servicio ECS del mismo nombre en
 # dev-ecs-cluster (lo crea Terraform con desired_count: 0 hasta que este
 # workflow sube la primera imagen).
-# El trigger apunta a la rama de pruebas ci/ecs-deploy-dev; cuando el deploy
-# esté validado se cambia a main.
+# El trigger es la rama release (sale de main): lo que se mezcla a release se
+# despliega a Dev.
 name: Deploy mcp-ltem to Amazon ECS (Dev)
 
 on:
   push:
     branches:
-      - ci/ecs-deploy-dev
+      - release
 
 permissions:
   id-token: write
