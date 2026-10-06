@@ -1,6 +1,8 @@
 """Database connection and query execution for LTEM ecological monitoring."""
 
 import threading
+import time
+from contextvars import ContextVar
 
 import pymysql
 import pymysql.cursors
@@ -11,6 +13,20 @@ from mcp_server.security import validate_sql, enforce_limit, DEFAULT_TIMEOUT, DE
 
 _pool: PooledDB | None = None
 _pool_lock = threading.Lock()
+
+# Database time spent by the current tool call, logged per call by
+# mcp_server.timing.ToolTimingMiddleware. It holds a dict that is mutated,
+# not rebound: sync tools run in a worker thread on a copy of the context,
+# so a rebind there would never reach the middleware, but the dict is shared.
+db_stats: ContextVar[dict | None] = ContextVar("db_stats", default=None)
+
+
+def _record(started: float, rows: int) -> None:
+	stats = db_stats.get()
+	if stats is not None:
+		stats["queries"] += 1
+		stats["rows"] += rows
+		stats["seconds"] += time.perf_counter() - started
 
 
 def _build_pool() -> PooledDB:
@@ -92,6 +108,8 @@ def execute_select(
 	validate_sql(sql)
 	sql = enforce_limit(sql, max_rows)
 
+	started = time.perf_counter()
+	rows: list[dict] = []
 	conn = get_connection()
 	try:
 		with conn.cursor() as cursor:
@@ -100,6 +118,7 @@ def execute_select(
 			return rows
 	finally:
 		conn.close()
+		_record(started, len(rows))
 
 
 def execute_raw(sql: str) -> list[dict]:
@@ -109,13 +128,17 @@ def execute_raw(sql: str) -> list[dict]:
 	"""
 	validate_sql(sql)
 
+	started = time.perf_counter()
+	rows: list[dict] = []
 	conn = get_connection()
 	try:
 		with conn.cursor() as cursor:
 			cursor.execute(sql)
-			return cursor.fetchall()
+			rows = cursor.fetchall()
+			return rows
 	finally:
 		conn.close()
+		_record(started, len(rows))
 
 
 def test_connection() -> dict:
