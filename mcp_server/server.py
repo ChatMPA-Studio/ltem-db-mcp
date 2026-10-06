@@ -17,6 +17,7 @@ from mcp_server.config import AUTH_ENABLED
 from mcp_server.db import test_connection
 from mcp_server.prompts import discover_prompts
 from mcp_server.schema import build_schema_snapshot, describe_table, discover_tables
+from mcp_server.timing import ToolTimingMiddleware
 
 logger = logging.getLogger(__name__)
 
@@ -24,10 +25,34 @@ logger = logging.getLogger(__name__)
 # Create the MCP server instance
 # ---------------------------------------------------------------------------
 
+
+class LtemMCP(FastMCP):
+	"""FastMCP whose tools default to output_schema=None.
+
+	Every tool returns its result already serialized as a JSON string. For a
+	`-> str` tool FastMCP's default is an output schema that wraps that
+	string, so each response carried the payload twice: in content[0].text
+	and again in structuredContent.result, doubling what went over the wire.
+	Without the schema only content[0].text is sent, which is what clients
+	read when there is no structuredContent (chat-mpa's orchestrator falls
+	back to json.loads() of it in _unwrap(), app/nlu/mcp_client_adapter.py).
+
+	Set here rather than on each decorator so tools added later get it too.
+	"""
+
+	def tool(self, *args, **kwargs):
+		kwargs.setdefault("output_schema", None)
+		return super().tool(*args, **kwargs)
+
+
 # With AUTH_ENABLED, FastMCP's auth layer requires a valid bearer key on
 # every HTTP request — there is no unauthenticated path left, internal or
 # otherwise (see mcp_server/auth.py).
-mcp = FastMCP("LTEM Database", auth=build_auth() if AUTH_ENABLED else None)
+mcp = LtemMCP(
+	"LTEM Database",
+	auth=build_auth() if AUTH_ENABLED else None,
+	middleware=[ToolTimingMiddleware()],
+)
 
 # ---------------------------------------------------------------------------
 
