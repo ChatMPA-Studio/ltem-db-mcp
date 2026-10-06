@@ -83,7 +83,13 @@ def _sens_slope(x, y):
 def register(mcp: FastMCP) -> None:
 	"""Register temporal trend tools with the MCP server."""
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Serie anual de una métrica",
+		description=(
+			"Serie de tiempo anual de la biomasa, la abundancia o la riqueza de peces. "
+			"Filtrable por región."
+		),
+	)
 	def annual_time_series(
 		region: str | None = None,
 		metric: str = "biomass",
@@ -139,7 +145,14 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Análisis de tendencia",
+		description=(
+			"Tendencia de la biomasa, la abundancia o la riqueza con regresión lineal, "
+			"prueba de Mann-Kendall y pendiente de Sen, para saber si aumenta o disminuye "
+			"de forma significativa. Filtrable por región."
+		),
+	)
 	def trend_analysis(
 		region: str | None = None,
 		metric: str = "biomass",
@@ -230,7 +243,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Tendencias por región",
+		description=(
+			"Compara la tendencia de la biomasa, la abundancia o la riqueza entre todas "
+			"las regiones."
+		),
+	)
 	def regional_trends(metric: str = "biomass") -> str:
 		"""Trend comparison across all regions.
 
@@ -305,7 +324,14 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Detección de puntos de cambio",
+		description=(
+			"Detecta puntos de cambio (años en que la serie cambia de nivel) en la serie "
+			"anual de biomasa o abundancia, con los métodos de Pettitt o CUSUM. Filtrable "
+			"por región."
+		),
+	)
 	def change_point_detection(
 		region: str | None = None,
 		metric: str = "biomass",
@@ -410,7 +436,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Patrones estacionales",
+		description=(
+			"Agregación mensual de los censos para detectar patrones estacionales a lo "
+			"largo del año. Filtrable por región."
+		),
+	)
 	def seasonal_patterns(region: str | None = None) -> str:
 		"""Monthly aggregation of survey data to detect seasonal patterns.
 
@@ -445,7 +477,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Promedio móvil de una métrica",
+		description=(
+			"Promedio móvil de la serie anual de biomasa o abundancia, con ventana "
+			"configurable en años. Filtrable por región."
+		),
+	)
 	def moving_window(
 		region: str | None = None,
 		metric: str = "biomass",

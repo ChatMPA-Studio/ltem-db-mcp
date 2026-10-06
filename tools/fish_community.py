@@ -6,6 +6,7 @@ from collections import defaultdict
 
 from fastmcp import FastMCP
 from mcp_server.db import execute_select
+from mcp_server.security import AGGREGATION_MAX_ROWS
 
 
 def _safe_float(v):
@@ -28,7 +29,14 @@ def _serialize_rows(rows: list[dict]) -> list[dict]:
 def register(mcp: FastMCP) -> None:
 	"""Register fish community tools with the MCP server."""
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Índices de diversidad de peces",
+		description=(
+			"Índices de diversidad de Shannon y Simpson y equidad de Pielou de la "
+			"comunidad de peces, calculados por transecto y resumidos. Filtrable por "
+			"región, arrecife, año y profundidad."
+		),
+	)
 	def calculate_diversity(
 		region: str | None = None,
 		reef: str | None = None,
@@ -70,7 +78,16 @@ def register(mcp: FastMCP) -> None:
 			f"{where} "
 			"GROUP BY Year, Region, Reef, Transect, Species"
 		)
-		rows = execute_select(sql, params=tuple(params) if params else None)
+		# One row per species per transect — finer than any other query here,
+		# and 194,476 rows unfiltered. Shannon/Simpson/Pielou are computed from
+		# the species proportions within each transect, so a truncated result
+		# does not just lose transects: it silently drops species from the
+		# transects that survive, inflating every index for them.
+		rows = execute_select(
+			sql,
+			params=tuple(params) if params else None,
+			max_rows=AGGREGATION_MAX_ROWS,
+		)
 
 		# Group by survey unit (Year-Region-Reef-Transect)
 		surveys: dict[str, dict[str, float]] = defaultdict(dict)
@@ -125,7 +142,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Especies dominantes por grupo",
+		description=(
+			"Especies más abundantes (las N primeras por abundancia relativa), agrupadas "
+			"por región, AMP, año o hábitat."
+		),
+	)
 	def species_composition(
 		group_by: str = "Region",
 		top_n: int = 15,
@@ -148,7 +171,11 @@ def register(mcp: FastMCP) -> None:
 			f"GROUP BY {group_by}, Species "
 			f"ORDER BY {group_by}, total_abundance DESC"
 		)
-		rows = execute_select(sql)
+		# Size depends on group_by: 2,937 rows for Region but 5,523 for Year,
+		# which is over DEFAULT_MAX_ROWS. The top-N selection below happens in
+		# Python, so a truncated result silently drops whole groups and skews
+		# the relative abundances of the ones left.
+		rows = execute_select(sql, max_rows=AGGREGATION_MAX_ROWS)
 
 		# Group and take top N per group
 		groups: dict[str, list] = defaultdict(list)
@@ -179,7 +206,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Estructura trófica de peces",
+		description=(
+			"Proporción de la biomasa de peces que corresponde a cada grupo trófico. "
+			"Filtrable por región y año."
+		),
+	)
 	def trophic_structure(
 		region: str | None = None,
 		year: int | None = None,
@@ -238,7 +271,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Estructura de tallas de peces",
+		description=(
+			"Distribución de la abundancia de peces por clase de talla: 0-10, 10-20, "
+			"20-30, 30-40, 40-50 y más de 50 cm. Filtrable por región y año."
+		),
+	)
 	def size_structure(
 		region: str | None = None,
 		year: int | None = None,
@@ -296,7 +335,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Similitud entre comunidades de peces",
+		description=(
+			"Matriz de disimilitud de Bray-Curtis entre comunidades de peces según su "
+			"composición de especies, comparando regiones, AMPs o hábitats."
+		),
+	)
 	def community_comparison(group_by: str = "Region") -> str:
 		"""Bray-Curtis dissimilarity matrix between groups.
 
@@ -314,7 +359,11 @@ def register(mcp: FastMCP) -> None:
 			"FROM ltem_historical_database "
 			f"GROUP BY {group_by}, Species"
 		)
-		rows = execute_select(sql)
+		# 3,613 rows at its worst (group_by='MPA') — under the default cap
+		# today, but the Bray-Curtis vectors below are built from every row,
+		# so losing any silently changes the dissimilarity matrix rather than
+		# failing. Too close to 5,000 to leave to chance as the data grows.
+		rows = execute_select(sql, max_rows=AGGREGATION_MAX_ROWS)
 
 		# Build abundance vectors per group
 		groups: dict[str, dict[str, float]] = defaultdict(dict)
