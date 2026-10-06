@@ -103,8 +103,10 @@ DB_SSL_CA: str | None = os.getenv("DB_SSL_CA") or None
 # db.py's use of PooledDB(blocking=True)).
 
 DB_POOL_MIN: int = int(os.getenv("DB_POOL_MIN", "1"))
-DB_POOL_MAX_CACHED: int = int(os.getenv("DB_POOL_MAX_CACHED", "5"))
 DB_POOL_MAX: int = int(os.getenv("DB_POOL_MAX", "10"))
+# Defaults to DB_POOL_MAX: with a smaller cache, connections opened during a
+# burst beyond it are closed when returned, and the next burst reopens them.
+DB_POOL_MAX_CACHED: int = int(os.getenv("DB_POOL_MAX_CACHED", str(DB_POOL_MAX)))
 
 
 # ---------------------------------------------------------------------------

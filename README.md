@@ -94,7 +94,7 @@ docker compose down
 | `MCP_BASE_PATH` | No | `/mcp` | MCP endpoint path |
 | `LOG_LEVEL` | No | `INFO` | Logging level (DEBUG, INFO, WARNING, ERROR) |
 | `DB_POOL_MIN` | No | `1` | Idle connections kept open at all times |
-| `DB_POOL_MAX_CACHED` | No | `5` | Idle connections kept cached for reuse |
+| `DB_POOL_MAX_CACHED` | No | `DB_POOL_MAX` | Idle connections kept cached for reuse |
 | `DB_POOL_MAX` | No | `10` | Hard cap on connections; requests beyond it block until one frees up |
 
 \* Not required if `DATABASE_URL` is set.

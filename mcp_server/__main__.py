@@ -17,6 +17,7 @@ from starlette.middleware import Middleware
 from starlette.middleware.gzip import GZipMiddleware
 
 from mcp_server.config import PORT, MCP_BASE_PATH, setup_logging, print_startup_summary
+from mcp_server.db import warm_pool
 from mcp_server.server import mcp
 
 
@@ -46,6 +47,7 @@ def build_app():
 if __name__ == "__main__":
 	setup_logging()
 	print_startup_summary()
+	warm_pool()
 	# Keep idle connections open longer than the ALB's idle timeout (60 s
 	# unless configured otherwise; uvicorn's default is 5 s), so the ALB
 	# never reuses a connection uvicorn already closed — that surfaces as a

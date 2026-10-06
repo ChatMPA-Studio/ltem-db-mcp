@@ -1,5 +1,6 @@
 """Database connection and query execution for LTEM ecological monitoring."""
 
+import logging
 import threading
 import time
 from contextvars import ContextVar
@@ -10,6 +11,8 @@ from dbutils.pooled_db import PooledDB
 
 from mcp_server import config
 from mcp_server.security import validate_sql, enforce_limit, DEFAULT_TIMEOUT, DEFAULT_MAX_ROWS
+
+logger = logging.getLogger(__name__)
 
 _pool: PooledDB | None = None
 _pool_lock = threading.Lock()
@@ -42,6 +45,11 @@ def _build_pool() -> PooledDB:
 		write_timeout=DEFAULT_TIMEOUT,
 		connect_timeout=10,
 		charset='utf8mb4',
+		# Every query here is a read. Without autocommit each SELECT opens a
+		# transaction that has to be rolled back when the connection goes back
+		# to the pool; with it there is none, and reset=False below skips that
+		# ROLLBACK round trip.
+		autocommit=True,
 	)
 
 	# Optional TLS (OFF by default). With a CA bundle the server cert is
@@ -61,6 +69,17 @@ def _build_pool() -> PooledDB:
 		# ping=1 checks liveness on every checkout and transparently
 		# reconnects instead of handing out a dead connection.
 		ping=1,
+		reset=False,
+		setsession=[
+			# enforce_limit() appends LIMIT to queries that have none. With
+			# ORDER BY + LIMIT the optimizer prefers an index already in ORDER
+			# BY order, hoping to stop early, even when DISTINCT/GROUP BY means
+			# it can't: get_reefs(region) scanned all 449K rows of
+			# idx_ltem_reef instead of the 74K its Region index selects
+			# (421 ms -> 103 ms with this off, same rows). Re-applied by
+			# DBUtils on every reconnect.
+			"SET SESSION optimizer_switch='prefer_ordering_index=off'",
+		],
 		**conn_kwargs,
 	)
 
@@ -72,6 +91,18 @@ def _get_pool() -> PooledDB:
 			if _pool is None:
 				_pool = _build_pool()
 	return _pool
+
+
+def warm_pool() -> None:
+	"""Open the pool's first connections at startup instead of on the first request.
+
+	Best effort: if the database is unreachable at startup the server still
+	starts, and the pool is built on the first query as before.
+	"""
+	try:
+		_get_pool()
+	except Exception:
+		logger.warning("Could not open the database pool at startup; retrying on first query", exc_info=True)
 
 
 def get_connection() -> pymysql.connections.Connection:

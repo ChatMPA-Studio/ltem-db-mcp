@@ -76,6 +76,19 @@ class TestConnectivity:
 		finally:
 			conn.close()
 
+	def test_pool_session_settings(self):
+		"""Pooled connections autocommit and don't prefer ORDER BY indexes (db.py)."""
+		from mcp_server.db import get_connection
+		conn = get_connection()
+		try:
+			with conn.cursor() as cur:
+				cur.execute('SELECT @@SESSION.autocommit AS ac, @@SESSION.optimizer_switch AS sw')
+				row = cur.fetchone()
+				assert row['ac'] == 1
+				assert 'prefer_ordering_index=off' in row['sw']
+		finally:
+			conn.close()
+
 	def test_health_check_tool(self):
 		"""health_check() tool returns connected status."""
 		from mcp_server.server import health_check
