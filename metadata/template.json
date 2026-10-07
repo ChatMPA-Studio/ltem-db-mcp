@@ -136,9 +136,9 @@
           {
             "name": "Biomass",
             "type": "DECIMAL(10,2)",
-            "description": "Biomass in g/m²",
+            "description": "Biomass in ton/ha",
             "required": false,
-            "units": "g/m²"
+            "units": "ton/ha"
           },
           {
             "name": "Quantity",

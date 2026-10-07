@@ -396,7 +396,7 @@ def _create_mpa_effectiveness_report(
 			ax.boxplot(groups, labels=labels, patch_artist=True,
 					   boxprops=dict(facecolor='lightblue', alpha=0.7),
 					   medianprops=dict(color='red', linewidth=2))
-			ax.set_ylabel('Biomass (g/m²)')
+			ax.set_ylabel('Biomass (ton/ha)')
 			ax.set_xlabel('Protection Level')
 			ax.set_title('Biomass by Protection Level')
 			ax.grid(axis='y', alpha=0.3)
@@ -413,7 +413,7 @@ def _create_mpa_effectiveness_report(
 			"Summary Statistics by Protection Level",
 			[{
 				"Protection Level": r['protection_level'],
-				"Mean Biomass (g/m²)": round(r['mean_biomass'], 2) if r['mean_biomass'] else None,
+				"Mean Biomass (ton/ha)": round(r['mean_biomass'], 2) if r['mean_biomass'] else None,
 				"Std Dev": round(r['std_biomass'], 2) if r['std_biomass'] else None,
 				"N Reefs": r['n_reefs'],
 				"N Transects": r['n_transects']
@@ -451,7 +451,7 @@ def _create_mpa_effectiveness_report(
 			ax.legend()
 
 		ax.set_xlabel('Year')
-		ax.set_ylabel('Mean Biomass (g/m²)')
+		ax.set_ylabel('Mean Biomass (ton/ha)')
 		ax.set_title('Cabo Pulmo Recovery Trajectory')
 		ax.grid(True, alpha=0.3)
 
@@ -540,7 +540,7 @@ def _create_temporal_trends_report(
 				label=f'Trend (p={p_value:.3f})')
 
 		ax.set_xlabel('Year')
-		units = {"biomass": "g/m²", "abundance": "count", "richness": "species"}
+		units = {"biomass": "ton/ha", "abundance": "count", "richness": "species"}
 		ax.set_ylabel(f'{metric.title()} ({units[metric]})')
 		ax.set_title(f'Annual {metric.title()} Time Series')
 		ax.legend()

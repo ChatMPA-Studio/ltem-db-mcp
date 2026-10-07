@@ -537,7 +537,7 @@ def register(mcp: FastMCP) -> None:
 		reef: str | None = None,
 		year: int | None = None,
 	) -> str:
-		"""Fish biomass by behavioral functional group (functional_name), one row per year × group. Unit: g/m².
+		"""Fish biomass by behavioral functional group (functional_name), one row per year × group. Unit: ton/ha.
 
 		Uses the species_traits lookup table (JOIN on Species) to assign each
 		observation to one of 6 behavioral categories from cluster_to_create_traits.csv.
@@ -626,11 +626,11 @@ def register(mcp: FastMCP) -> None:
 				"parameters": {"region": region, "mpa": mpa, "reef": reef, "year": year},
 				"row_count": len(rows),
 				"columns": ["year", "functional_name", "mean_biomass", "n_transects"],
-				"unit": "g/m²",
+				"unit": "ton/ha",
 				"aggregation": "SUM per transect → AVG per reef → AVG per year × functional_name",
 				"valid_groups": list(VALID_FG),
 				"description": (
-					"Mean fish biomass (g/m²) per year × behavioral functional group. "
+					"Mean fish biomass (ton/ha) per year × behavioral functional group. "
 					"Maps directly to TrophicYear schema fields."
 				),
 			},
@@ -651,7 +651,7 @@ def register(mcp: FastMCP) -> None:
 		year: int | None = None,
 		families: list[str] | None = None,
 	) -> str:
-		"""Fish biomass by taxonomic family, one row per year × family. Unit: g/m².
+		"""Fish biomass by taxonomic family, one row per year × family. Unit: ton/ha.
 
 		Same preprocessing as get_biomass_data: Label='PEC', Biomass IS NOT NULL,
 		SUM per transect then AVG across transects per year × family.
@@ -719,9 +719,9 @@ def register(mcp: FastMCP) -> None:
 				},
 				"row_count": len(rows),
 				"columns": ["year", "family", "mean_biomass", "n_transects"],
-				"unit": "g/m²",
+				"unit": "ton/ha",
 				"aggregation": "SUM biomass per transect, then AVG across transects per year × family",
-				"description": "Mean fish biomass (g/m²) per year × taxonomic family",
+				"description": "Mean fish biomass (ton/ha) per year × taxonomic family",
 			},
 		})
 
@@ -738,7 +738,7 @@ def register(mcp: FastMCP) -> None:
 		reef: str | None = None,
 		year: int | None = None,
 	) -> str:
-		"""Fish biomass by species, one row per species. Unit: g/m².
+		"""Fish biomass by species, one row per species. Unit: ton/ha.
 
 		Returns a sortable table for top-species-by-biomass ranking. The ranking
 		itself (top-N selection) is the caller's responsibility.
@@ -803,9 +803,9 @@ def register(mcp: FastMCP) -> None:
 				},
 				"row_count": len(rows),
 				"columns": ["species_id", "species_name", "trophic_group", "mean_biomass", "n_transects"],
-				"unit": "g/m²",
+				"unit": "ton/ha",
 				"aggregation": "SUM biomass per transect, then AVG across transects per species",
-				"description": "Mean fish biomass (g/m²) per species, sortable for top-N ranking",
+				"description": "Mean fish biomass (ton/ha) per species, sortable for top-N ranking",
 			},
 		})
 

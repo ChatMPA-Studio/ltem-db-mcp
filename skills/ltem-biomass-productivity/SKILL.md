@@ -18,7 +18,7 @@ This skill guides the analysis of fish biomass patterns and environmental relati
 ## Dataset Reference
 
 **Source:** `ltem_historical_database` table via MCP server
-**Biomass units:** grams per square meter (g/m2)
+**Biomass units:** tons per hectare (ton/ha)
 **Environmental variables:** SST (degrees C), Chla (mg/m3) — may not be available for all regions
 
 ## MCP Tools Available
