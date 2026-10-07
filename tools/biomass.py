@@ -544,22 +544,19 @@ def register(mcp: FastMCP) -> None:
 		Species with functional_name = 'Pelagic' or without a match in species_traits
 		are excluded automatically.
 
-		Aggregation (replicates run_tests.R:117-124):
-		  1. SUM biomass per (year, reef, transect, functional_name)
-		  2. AVG across transects per (year, reef, functional_name)
-		  3. AVG across reefs per (year, functional_name)
-
-		Preprocessing filters applied:
-		  - Label = 'PEC'
-		  - Biomass IS NOT NULL
-		  - functional_name IN the 6 valid categories
-
-		Note: taxonomic/analysis filters (Carangidae, Corredor Haemulidae/Carangidae
-		outliers) are intentionally NOT applied here — those are analysis decisions
-		owned by the skill layer, consistent with get_biomass_data (see fe0d707).
-
 		Do not combine region and mpa — the filter is AND and the result would be
 		more restrictive than either alone.
+
+		Aggregation (same scheme as run_tests.R:117-124): SUM biomass per
+		(year, reef, transect, functional_name), then AVG across transects per
+		(year, reef, functional_name), then AVG across reefs per
+		(year, functional_name).
+
+		Preprocessing: Label='PEC', Biomass IS NOT NULL, functional_name IN the
+		6 valid categories. Taxonomic/analysis filters (Carangidae, Corredor
+		Haemulidae/Carangidae outliers) are intentionally NOT applied here — those
+		are analysis decisions owned by the skill layer, consistent with
+		get_biomass_data (see fe0d707).
 
 		Args:
 			region: Filter by LTEM region name (e.g. "Cabo Pulmo").
