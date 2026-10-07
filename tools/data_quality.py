@@ -25,7 +25,14 @@ def _serialize_rows(rows):
 def register(mcp: FastMCP) -> None:
 	"""Register data quality tools with the MCP server."""
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Valores atípicos por MAD",
+		description=(
+			"Control de calidad de datos: marca tallas y cantidades atípicas por especie "
+			"con el método de la desviación absoluta mediana (MAD)."
+		),
+		tags={'interno'},
+	)
 	def detect_outliers_mad(
 		region: str | None = None,
 		year: int | None = None,
@@ -121,7 +128,14 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Valores atípicos por cuantiles",
+		description=(
+			"Control de calidad de datos: marca tallas y cantidades fuera de los "
+			"percentiles esperados por especie."
+		),
+		tags={'interno'},
+	)
 	def detect_outliers_quantile(
 		region: str | None = None,
 		year: int | None = None,
@@ -207,7 +221,15 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Evaluación del tamaño de muestra",
+		description=(
+			"Control de calidad de datos: clasifica el tamaño de muestra por región, "
+			"arrecife o año como insuficiente, limitado o suficiente para pruebas "
+			"estadísticas."
+		),
+		tags={'interno'},
+	)
 	def sample_size_assessment(group_by: str = "Region") -> str:
 		"""Classify sample sizes as insufficient (<10), limited (10-30), or sufficient (>=30).
 
@@ -256,7 +278,14 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Auditoría de cobertura de transectos",
+		description=(
+			"Control de calidad de datos: detecta transectos que tienen datos de peces "
+			"pero no de invertebrados, o al revés."
+		),
+		tags={'interno'},
+	)
 	def transect_coverage_audit(
 		year: int | None = None,
 		region: str | None = None,
@@ -313,7 +342,14 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Reporte de datos faltantes",
+		description=(
+			"Control de calidad de datos: porcentaje de valores faltantes por año en los "
+			"campos principales."
+		),
+		tags={'interno'},
+	)
 	def data_completeness_report(region: str | None = None) -> str:
 		"""Report missing data percentages for key fields by year.
 

@@ -12,6 +12,8 @@ from pathlib import Path
 
 from fastmcp import FastMCP
 
+from mcp_server.auth import build_auth
+from mcp_server.config import AUTH_ENABLED
 from mcp_server.db import test_connection
 from mcp_server.prompts import discover_prompts
 from mcp_server.schema import build_schema_snapshot, describe_table, discover_tables
@@ -22,11 +24,13 @@ logger = logging.getLogger(__name__)
 # Create the MCP server instance
 # ---------------------------------------------------------------------------
 
-mcp = FastMCP("LTEM Database")
+# With AUTH_ENABLED, FastMCP's auth layer requires a valid bearer key on
+# every HTTP request — there is no unauthenticated path left, internal or
+# otherwise (see mcp_server/auth.py).
+mcp = FastMCP("LTEM Database", auth=build_auth() if AUTH_ENABLED else None)
 
 # ---------------------------------------------------------------------------
-# MCP Resources (static + dynamic)
-# ---------------------------------------------------------------------------
+
 
 @mcp.resource("ltem://schema")
 def schema_resource() -> str:
@@ -162,7 +166,14 @@ def metadata_endpoints_resource() -> str:
 # Core tools (schema discovery, health check)
 # ---------------------------------------------------------------------------
 
-@mcp.tool()
+@mcp.tool(
+	title="Estado de la conexión a la base de datos",
+	description=(
+		"Verifica la conexión con la base de datos LTEM y devuelve información del "
+		"servidor. Herramienta técnica de diagnóstico."
+	),
+	tags={'interno'},
+)
 def health_check() -> str:
 	"""Verify database connectivity and return server info."""
 	try:
@@ -172,7 +183,14 @@ def health_check() -> str:
 		return json.dumps({"status": "error", "error": str(e)})
 
 
-@mcp.tool()
+@mcp.tool(
+	title="Tablas de la base de datos",
+	description=(
+		"Lista las tablas disponibles en la base de datos ecological_monitoring. "
+		"Herramienta técnica de exploración del esquema."
+	),
+	tags={'interno'},
+)
 def list_tables() -> str:
 	"""List all tables available in the ecological_monitoring database."""
 	try:
@@ -182,7 +200,14 @@ def list_tables() -> str:
 		return json.dumps({"error": str(e)})
 
 
-@mcp.tool()
+@mcp.tool(
+	title="Columnas de una tabla",
+	description=(
+		"Describe las columnas y los tipos de datos de una tabla de la base de datos. "
+		"Herramienta técnica de exploración del esquema."
+	),
+	tags={'interno'},
+)
 def describe_table_tool(table: str) -> str:
 	"""Describe columns and types for a specific table.
 
@@ -200,7 +225,14 @@ def describe_table_tool(table: str) -> str:
 		return json.dumps({"error": str(e)})
 
 
-@mcp.tool()
+@mcp.tool(
+	title="Esquema completo de la base de datos",
+	description=(
+		"Devuelve el esquema completo: tablas, columnas, tipos y número de filas. "
+		"Herramienta técnica de exploración del esquema."
+	),
+	tags={'interno'},
+)
 def schema_snapshot() -> str:
 	"""Full schema snapshot with all tables, columns, types, and row counts."""
 	try:

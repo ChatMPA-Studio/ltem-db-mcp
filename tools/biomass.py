@@ -9,6 +9,7 @@ from scipy import stats as sp_stats
 
 from fastmcp import FastMCP
 from mcp_server.db import execute_select
+from mcp_server.security import AGGREGATION_MAX_ROWS
 
 
 def _safe_float(v):
@@ -38,7 +39,14 @@ def _biomass_warnings(rows, biomass_col="total_biomass"):
 def register(mcp: FastMCP) -> None:
 	"""Register biomass analysis tools with the MCP server."""
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Biomasa de peces por región",
+		description=(
+			"Biomasa media de peces de cada región del programa LTEM, con prueba de "
+			"Kruskal-Wallis para saber si las regiones difieren entre sí. Filtrable por "
+			"año y por profundidad."
+		),
+	)
 	def biomass_by_region(
 		year: int | None = None,
 		depth: str | None = None,
@@ -66,7 +74,15 @@ def register(mcp: FastMCP) -> None:
 			f"FROM ltem_historical_database {where} "
 			"GROUP BY Region, Year, Reef, Transect"
 		)
-		rows = execute_select(sql, params=tuple(params) if params else None)
+		# 6,115 rows with no year filter. These are the raw per-transect
+		# values the Kruskal-Wallis below needs in full — capped at 5,000 the
+		# test ran on 10 of 14 regions and reported H=153 instead of H=309,
+		# with nothing in the output saying so.
+		rows = execute_select(
+			sql,
+			params=tuple(params) if params else None,
+			max_rows=AGGREGATION_MAX_ROWS,
+		)
 
 		# Group by region
 		region_data: dict[str, list[float]] = defaultdict(list)
@@ -114,7 +130,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Biomasa de peces por profundidad",
+		description=(
+			"Compara la biomasa de peces entre sitios someros y sitios profundos. "
+			"Filtrable por región."
+		),
+	)
 	def biomass_by_depth(region: str | None = None) -> str:
 		"""Compare biomass between shallow and deep depth categories.
 
@@ -134,7 +156,13 @@ def register(mcp: FastMCP) -> None:
 			f"FROM ltem_historical_database {where} "
 			"GROUP BY Depth2, Year, Reef, Transect"
 		)
-		rows = execute_select(sql, params=tuple(params) if params else None)
+		# 8,351 rows with no region filter — the Mann-Whitney below compares
+		# the full Shallow and Deep distributions, so truncation biases both.
+		rows = execute_select(
+			sql,
+			params=tuple(params) if params else None,
+			max_rows=AGGREGATION_MAX_ROWS,
+		)
 
 		depth_data: dict[str, list[float]] = defaultdict(list)
 		for r in rows:
@@ -178,7 +206,14 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Biomasa de peces por grupo trófico",
+		description=(
+			"Biomasa de peces desglosada por grupo trófico (herbívoros, carnívoros, "
+			"piscívoros, planctívoros y otros), en valores absolutos. Filtrable por "
+			"región y año."
+		),
+	)
 	def trophic_biomass(
 		region: str | None = None,
 		year: int | None = None,
@@ -239,7 +274,14 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Correlación de la biomasa con variables ambientales",
+		description=(
+			"Correlaciones de Spearman entre la biomasa de peces y variables ambientales "
+			"como la temperatura superficial del mar y la clorofila-a. Filtrable por "
+			"región."
+		),
+	)
 	def environmental_correlations(region: str | None = None) -> str:
 		"""Spearman correlations between biomass and environmental variables (SST, Chl-a).
 
@@ -267,7 +309,14 @@ def register(mcp: FastMCP) -> None:
 			"HAVING total_biomass > 0"
 		)
 		try:
-			rows = execute_select(sql, params=tuple(params) if params else None)
+			# 6,115 rows unfiltered. Every row is one (biomass, SST) pair fed
+			# to the Spearman correlation, so a truncated result changes rho
+			# and p without changing anything visible in the response.
+			rows = execute_select(
+				sql,
+				params=tuple(params) if params else None,
+				max_rows=AGGREGATION_MAX_ROWS,
+			)
 		except Exception as e:
 			error_msg = str(e)
 			if "Unknown column" in error_msg or "SST" in error_msg or "Chla" in error_msg:
@@ -317,7 +366,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Relación entre temperatura del mar y biomasa de peces",
+		description=(
+			"Regresión lineal y cuadrática de la biomasa de peces en función de la "
+			"temperatura superficial del mar. Filtrable por región."
+		),
+	)
 	def sst_biomass_relationship(region: str | None = None) -> str:
 		"""Linear and quadratic regression of biomass vs SST.
 
@@ -402,7 +457,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Relación entre clorofila y productividad de peces",
+		description=(
+			"Regresión log-log entre la concentración de clorofila-a y la productividad "
+			"(biomasa) de peces. Filtrable por región."
+		),
+	)
 	def chl_productivity_relationship(region: str | None = None) -> str:
 		"""Log-log regression of Chl-a vs productivity (biomass).
 
@@ -463,7 +524,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Biomasa de peces por gremio de comportamiento",
+		description=(
+			"Biomasa de peces (g/m²) por gremio o grupo de comportamiento, por año. "
+			"Filtrable por región, AMP, arrecife y año."
+		),
+	)
 	def behavioral_group_biomass(
 		region: str | None = None,
 		mpa: str | None = None,
@@ -569,7 +636,14 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Biomasa de peces por familia",
+		description=(
+			"Biomasa de peces (g/m²) por familia taxonómica (por ejemplo Serranidae o "
+			"Lutjanidae), por año. Filtrable por región, AMP, arrecife, año y lista de "
+			"familias."
+		),
+	)
 	def family_biomass(
 		region: str | None = None,
 		mpa: str | None = None,
@@ -651,7 +725,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Biomasa de peces por especie",
+		description=(
+			"Biomasa de peces (g/m²) de cada especie, en una tabla ordenable por biomasa. "
+			"Filtrable por región, AMP, arrecife y año."
+		),
+	)
 	def species_biomass(
 		region: str | None = None,
 		mpa: str | None = None,
@@ -729,7 +809,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Gradiente latitudinal de biomasa de peces",
+		description=(
+			"Tendencias de la biomasa de peces a lo largo del gradiente de latitud, de "
+			"norte a sur, con todas las regiones monitoreadas."
+		),
+	)
 	def latitudinal_gradient() -> str:
 		"""Biomass trends along a latitudinal gradient.
 

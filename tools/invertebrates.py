@@ -33,7 +33,13 @@ _PERIOD_RANGES = {
 def register(mcp: FastMCP) -> None:
 	"""Register invertebrate analysis tools with the MCP server."""
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Resumen de invertebrados",
+		description=(
+			"Abundancia y riqueza de invertebrados por grupo taxonómico: estrellas de "
+			"mar, erizos, gorgonias y corales duros. Filtrable por región y año."
+		),
+	)
 	def invertebrate_summary(
 		region: str | None = None,
 		year: int | None = None,
@@ -88,7 +94,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Lista de especies de invertebrados",
+		description=(
+			"Inventario de especies de invertebrados con su abundancia total. Filtrable "
+			"por región, año y grupo taxonómico."
+		),
+	)
 	def invertebrate_species_list(
 		region: str | None = None,
 		year: int | None = None,
@@ -136,7 +148,14 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Proporción de corales cálidos y fríos",
+		description=(
+			"Proporción entre corales duros de aguas cálidas (Scleractinia) y gorgonias "
+			"de aguas frías (Holaxonia) por arrecife; sus cambios indican cambios del "
+			"régimen térmico. Filtrable por región y año."
+		),
+	)
 	def coral_warm_cold_ratio(
 		region: str | None = None,
 		year: int | None = None,
@@ -210,7 +229,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Gradiente latitudinal de invertebrados",
+		description=(
+			"Abundancia de invertebrados por grado de latitud, opcionalmente por periodo "
+			"climático: histórico (1998-2013), calentamiento (2014-2024) o actual."
+		),
+	)
 	def invertebrate_latitudinal_gradient(period: str | None = None) -> str:
 		"""Invertebrate abundance by latitude degree, optionally filtered by climate period.
 
@@ -267,7 +292,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Tendencia temporal de invertebrados",
+		description=(
+			"Tendencia anual de la abundancia de invertebrados con prueba de "
+			"Mann-Kendall. Filtrable por región y grupo taxonómico."
+		),
+	)
 	def invertebrate_temporal_trends(
 		region: str | None = None,
 		taxa2: str | None = None,
@@ -373,7 +404,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Blanqueamiento de coral",
+		description=(
+			"Cobertura de blanqueamiento de coral por arrecife y año. Filtrable por "
+			"región y año."
+		),
+	)
 	def bleaching_assessment(
 		region: str | None = None,
 		year: int | None = None,

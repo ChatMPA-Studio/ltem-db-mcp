@@ -21,7 +21,13 @@ def _serialize_rows(rows):
 def register(mcp: FastMCP) -> None:
 	"""Register survey reporting tools with the MCP server."""
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Totales históricos del programa LTEM",
+		description=(
+			"Totales de toda la base histórica: observaciones, individuos contados, "
+			"especies, arrecifes, transectos y superficie muestreada."
+		),
+	)
 	def numeralia_historical() -> str:
 		"""Grand totals for the entire LTEM historical database.
 
@@ -51,7 +57,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Esfuerzo de muestreo por tipo de censo",
+		description=(
+			"Esfuerzo de muestreo separado por tipo de censo: peces (PEC) e invertebrados "
+			"(INV). Filtrable por año."
+		),
+	)
 	def numeralia_by_label(year: int | None = None) -> str:
 		"""Breakdown of survey effort by Label (PEC = fish, INV = invertebrates).
 
@@ -89,7 +101,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Esfuerzo de muestreo por región",
+		description=(
+			"Número de sitios, especies e individuos registrados por región. Filtrable "
+			"por año y tipo de censo."
+		),
+	)
 	def numeralia_by_region(
 		year: int | None = None,
 		label: str | None = None,
@@ -137,7 +155,13 @@ def register(mcp: FastMCP) -> None:
 			},
 		})
 
-	@mcp.tool()
+	@mcp.tool(
+		title="Arrecifes con monitoreo constante",
+		description=(
+			"Arrecifes censados en un mínimo de años distintos, útiles para análisis "
+			"temporales con series comparables. Filtrable por tipo de censo."
+		),
+	)
 	def consistent_reefs(
 		min_years: int = 5,
 		label: str | None = None,
@@ -159,29 +183,39 @@ def register(mcp: FastMCP) -> None:
 
 		where = "WHERE " + " AND ".join(conditions) if conditions else ""
 
+		# total_years comes along as a column on every row via a
+		# non-correlated scalar subquery, so the common case is a single
+		# round trip instead of two (the aggregate query + a separate
+		# "count total years" query).
 		sql = (
 			"SELECT Region, Reef, "
 			"COUNT(DISTINCT Year) AS years_monitored, "
 			"MIN(Year) AS first_year, "
-			"MAX(Year) AS last_year "
+			"MAX(Year) AS last_year, "
+			f"(SELECT COUNT(DISTINCT Year) FROM ltem_historical_database {where}) AS total_years "
 			f"FROM ltem_historical_database {where} "
 			"GROUP BY Region, Reef "
-			f"HAVING COUNT(DISTINCT Year) >= %s "
+			"HAVING COUNT(DISTINCT Year) >= %s "
 			"ORDER BY Region, years_monitored DESC"
 		)
-		params.append(min_years)
-		rows = execute_select(sql, params=tuple(params))
+		# Placeholder order follows the SQL text left-to-right: the
+		# subquery's filter comes first, then the outer WHERE's, then
+		# HAVING's min_years.
+		query_params = params + params + [min_years]
+		rows = execute_select(sql, params=tuple(query_params))
 		rows = _serialize_rows(rows)
 
-		# Count total years in dataset for coverage calculation
-		total_years_sql = "SELECT COUNT(DISTINCT Year) AS total FROM ltem_historical_database"
-		if where:
-			total_years_sql += f" {where}"
-		total_rows = execute_select(
-			total_years_sql,
-			params=tuple(params[:-1]) if params[:-1] else None,
-		)
-		total_years = total_rows[0]["total"] if total_rows else 0
+		if rows:
+			total_years = rows[0]["total_years"]
+			for r in rows:
+				r.pop("total_years", None)
+		else:
+			# No reef met the HAVING threshold, so total_years never made it
+			# into a result row — fall back to a dedicated query just for
+			# the meta stat.
+			total_years_sql = f"SELECT COUNT(DISTINCT Year) AS total FROM ltem_historical_database {where}"
+			total_rows = execute_select(total_years_sql, params=tuple(params) if params else None)
+			total_years = total_rows[0]["total"] if total_rows else 0
 
 		for r in rows:
 			r["coverage_pct"] = round(
