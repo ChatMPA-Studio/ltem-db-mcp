@@ -531,9 +531,7 @@ def register(mcp: FastMCP) -> None:
 			"depredadores generalistas solitarios o en cardumen, epibentónicos en cardumen, "
 			"crípticos solitarios o en cardumen y planctívoros (6 grupos). Responde cómo cambia en el "
 			"tiempo la biomasa de cada grupo conductual en una AMP, región o arrecife. Filtrable por "
-			"región, AMP, arrecife y año. No usar para grupo funcional o gremio alimentario "
-			"(usar functional_group_biomass) ni para la biomasa total de peces o su tendencia "
-			"(usar la skill ltem-fish-biomass)."
+			"región, AMP, arrecife y año."
 		),
 	)
 	def behavioral_group_biomass(

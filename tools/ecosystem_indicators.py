@@ -366,9 +366,7 @@ def register(mcp: FastMCP) -> None:
 			"piscívoros, pisci-invertívoros, macro y micro-invertívoros, planctívoros, coralívoros, "
 			"detritívoros y espongívoros (11 grupos). Responde qué grupo funcional tiene mayor biomasa "
 			"y qué proporción de la biomasa aporta cada grupo funcional en una región, en un año o en "
-			"toda la serie. Filtrable por región y año. No da la biomasa total de peces "
-			"(usar la skill ltem-fish-biomass) ni los grupos conductuales o de comportamiento "
-			"(usar behavioral_group_biomass)."
+			"toda la serie. Filtrable por región y año."
 		),
 	)
 	def functional_group_biomass(

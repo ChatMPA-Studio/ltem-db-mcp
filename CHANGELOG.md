@@ -25,7 +25,9 @@ All notable changes to the LTEM Database MCP Server will be documented in this f
   chatbot can tell them apart (chatbot evaluation report, Part I, H-01 / A.3: "grupo funcional"
   questions were answered with `behavioral_group_biomass`). Each one now names its
   classification (11 feeding guilds from `Functional_groups` vs 6 behavioral groups from
-  `species_traits.functional_name`), what it answers, and which tool or skill to use instead.
+  `species_traits.functional_name`) and what it answers. Neither names the other tool: the
+  chatbot's lexical (BM25) tool search ignores negation, so "do not use for grupo funcional"
+  would attract exactly those questions.
   The `behavioral_group_biomass` docstring says "behavioral group" instead of "behavioral
   functional group". No query, parameter or value changes.
 
