@@ -525,10 +525,15 @@ def register(mcp: FastMCP) -> None:
 		})
 
 	@mcp.tool(
-		title="Biomasa de peces por gremio de comportamiento",
+		title="Biomasa de peces por grupo conductual (comportamiento)",
 		description=(
-			"Biomasa de peces (g/m²) por gremio o grupo de comportamiento, por año. "
-			"Filtrable por región, AMP, arrecife y año."
+			"Biomasa media de peces (t/ha) por grupo conductual o de comportamiento, por año: "
+			"depredadores generalistas solitarios o en cardumen, epibentónicos en cardumen, "
+			"crípticos solitarios o en cardumen y planctívoros (6 grupos). Responde cómo cambia en el "
+			"tiempo la biomasa de cada grupo conductual en una AMP, región o arrecife. Filtrable por "
+			"región, AMP, arrecife y año. No usar para grupo funcional o gremio alimentario "
+			"(usar functional_group_biomass) ni para la biomasa total de peces o su tendencia "
+			"(usar la skill ltem-fish-biomass)."
 		),
 	)
 	def behavioral_group_biomass(
@@ -537,7 +542,7 @@ def register(mcp: FastMCP) -> None:
 		reef: str | None = None,
 		year: int | None = None,
 	) -> str:
-		"""Fish biomass by behavioral functional group (functional_name), one row per year × group. Unit: ton/ha.
+		"""Fish biomass by behavioral group (functional_name), one row per year × group. Unit: ton/ha.
 
 		Uses the species_traits lookup table (JOIN on Species) to assign each
 		observation to one of 6 behavioral categories from cluster_to_create_traits.csv.
@@ -636,7 +641,7 @@ def register(mcp: FastMCP) -> None:
 	@mcp.tool(
 		title="Biomasa de peces por familia",
 		description=(
-			"Biomasa de peces (g/m²) por familia taxonómica (por ejemplo Serranidae o "
+			"Biomasa de peces (t/ha) por familia taxonómica (por ejemplo Serranidae o "
 			"Lutjanidae), por año. Filtrable por región, AMP, arrecife, año y lista de "
 			"familias."
 		),
@@ -725,7 +730,7 @@ def register(mcp: FastMCP) -> None:
 	@mcp.tool(
 		title="Biomasa de peces por especie",
 		description=(
-			"Biomasa de peces (g/m²) de cada especie, en una tabla ordenable por biomasa. "
+			"Biomasa de peces (t/ha) de cada especie, en una tabla ordenable por biomasa. "
 			"Filtrable por región, AMP, arrecife y año."
 		),
 	)

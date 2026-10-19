@@ -317,7 +317,7 @@ def register(mcp: FastMCP) -> None:
 	@mcp.tool(
 		title="Datos de biomasa de peces por arrecife y año",
 		description=(
-			"Biomasa media de peces (g/m²) por arrecife y año, el insumo del análisis de "
+			"Biomasa media de peces (t/ha) por arrecife y año, el insumo del análisis de "
 			"tendencia de biomasa. Filtrable por AMP, región, arrecife y año."
 		),
 	)
