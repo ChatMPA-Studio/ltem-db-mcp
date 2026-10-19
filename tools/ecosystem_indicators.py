@@ -359,10 +359,14 @@ def register(mcp: FastMCP) -> None:
 	# -----------------------------------------------------------------------
 
 	@mcp.tool(
-		title="Biomasa de peces por grupo funcional",
+		title="Biomasa de peces por grupo funcional (gremio alimentario)",
 		description=(
-			"Biomasa de peces por grupo funcional ecológico, con etiquetas en español. "
-			"Filtrable por región y año."
+			"Biomasa de peces por grupo funcional según su alimentación (gremio alimentario): "
+			"herbívoros pastoreadores (grazers), ramoneadores (browsers), raspadores/excavadores, "
+			"piscívoros, pisci-invertívoros, macro y micro-invertívoros, planctívoros, coralívoros, "
+			"detritívoros y espongívoros (11 grupos). Responde qué grupo funcional tiene mayor biomasa "
+			"y qué proporción de la biomasa aporta cada grupo funcional en una región, en un año o en "
+			"toda la serie. Filtrable por región y año."
 		),
 	)
 	def functional_group_biomass(

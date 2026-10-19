@@ -317,8 +317,10 @@ def register(mcp: FastMCP) -> None:
 	@mcp.tool(
 		title="Datos de biomasa de peces por arrecife y año",
 		description=(
-			"Biomasa media de peces (g/m²) por arrecife y año, el insumo del análisis de "
-			"tendencia de biomasa. Filtrable por AMP, región, arrecife y año."
+			"Biomasa media de peces (t/ha) de cada arrecife o sitio de monitoreo, por año. "
+			"Responde cuál es la biomasa promedio de peces por arrecife, qué arrecifes tienen más "
+			"o menos biomasa y cómo se comparan los arrecifes de una AMP o región, en un año o "
+			"a lo largo del tiempo. Filtrable por AMP, región, arrecife y año."
 		),
 	)
 	def get_biomass_data(

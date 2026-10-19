@@ -16,6 +16,25 @@ All notable changes to the LTEM Database MCP Server will be documented in this f
   No tool converts the column, so every biomass output (`get_biomass_data`,
   `behavioral_group_biomass`, `family_biomass`, `species_biomass`, reports) is in ton/ha.
   Documentation only: no query or value changes.
+- Published Spanish descriptions (the `description=` of `@mcp.tool`, which FastMCP publishes
+  instead of the docstring) still said g/m² for `get_biomass_data`, `behavioral_group_biomass`,
+  `family_biomass` and `species_biomass`; now t/ha. Description only.
+
+### Changed
+- Descriptions of `functional_group_biomass` and `behavioral_group_biomass` rewritten so the
+  chatbot can tell them apart (chatbot evaluation report, Part I, H-01 / A.3: "grupo funcional"
+  questions were answered with `behavioral_group_biomass`). Each one now names its
+  classification (11 feeding guilds from `Functional_groups` vs 6 behavioral groups from
+  `species_traits.functional_name`) and what it answers. Neither names the other tool: the
+  chatbot's lexical (BM25) tool search ignores negation, so "do not use for grupo funcional"
+  would attract exactly those questions.
+- Descriptions of `get_biomass_data` and `species_biomass` rewritten (same report: "biomasa
+  promedio por arrecife" was answered with `species_biomass`). `get_biomass_data` now says it
+  gives one value per reef or monitoring site and year, and which reef questions it answers;
+  `species_biomass` says it gives one value per species, ordered by biomass. No query,
+  parameter or value changes.
+  The `behavioral_group_biomass` docstring says "behavioral group" instead of "behavioral
+  functional group". No query, parameter or value changes.
 
 ## [1.2.0] — 2026-02-16
 
