@@ -728,8 +728,9 @@ def register(mcp: FastMCP) -> None:
 	@mcp.tool(
 		title="Biomasa de peces por especie",
 		description=(
-			"Biomasa de peces (t/ha) de cada especie, en una tabla ordenable por biomasa. "
-			"Filtrable por región, AMP, arrecife y año."
+			"Biomasa media de peces (t/ha) de cada especie, ordenada de mayor a menor. "
+			"Responde qué especies de peces aportan más biomasa en una AMP, región o arrecife, "
+			"en un año o en toda la serie. Filtrable por región, AMP, arrecife y año."
 		),
 	)
 	def species_biomass(

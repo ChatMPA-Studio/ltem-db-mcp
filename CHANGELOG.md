@@ -28,6 +28,11 @@ All notable changes to the LTEM Database MCP Server will be documented in this f
   `species_traits.functional_name`) and what it answers. Neither names the other tool: the
   chatbot's lexical (BM25) tool search ignores negation, so "do not use for grupo funcional"
   would attract exactly those questions.
+- Descriptions of `get_biomass_data` and `species_biomass` rewritten (same report: "biomasa
+  promedio por arrecife" was answered with `species_biomass`). `get_biomass_data` now says it
+  gives one value per reef or monitoring site and year, and which reef questions it answers;
+  `species_biomass` says it gives one value per species, ordered by biomass. No query,
+  parameter or value changes.
   The `behavioral_group_biomass` docstring says "behavioral group" instead of "behavioral
   functional group". No query, parameter or value changes.
 
